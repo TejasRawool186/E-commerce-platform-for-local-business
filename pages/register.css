@@ -1,0 +1,184 @@
+/* Reset & base */
+* {
+  box-sizing: border-box;
+}
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f9f9f9;
+}
+
+/* Navbar */
+nav {
+  display: flex;
+  align-items: center;
+  background: #f3f6fc;
+  padding: 10px 20px;
+  border-bottom: 1px solid #ddd;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+nav .logo {
+  font-weight: bold;
+  color: #007bff;
+  font-size: 1.3em;
+  text-decoration: none;
+}
+nav ul {
+  list-style: none;
+  display: flex;
+  margin: 0;
+  padding: 0;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+nav ul li a {
+  text-decoration: none;
+  color: #2a2a2a;
+  font-weight: 500;
+}
+nav .login-btn {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  padding: 7px 18px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s;
+  text-decoration: none;
+}
+nav .login-btn:hover {
+  background: #0056b3;
+}
+
+/* Container */
+.container {
+  max-width: 480px;
+  margin: 40px auto;
+  background: white;
+  padding: 30px 30px 40px;
+  border-radius: 6px;
+  box-shadow: 0 0 12px rgb(0 0 0 / 0.1);
+}
+h2 {
+  text-align: center;
+  margin-bottom: 25px;
+  font-weight: 700;
+  color: #333;
+}
+
+/* Form */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.radio-group {
+  display: flex;
+  gap: 25px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  justify-content: center;
+}
+.radio-group label {
+  cursor: pointer;
+  user-select: none;
+}
+.field-row {
+  display: flex;
+  gap: 15px;
+}
+.field-row > div {
+  flex: 1;
+}
+label {
+  display: block;
+  font-size: 0.9em;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #555;
+}
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+  transition: border-color 0.3s;
+  background-color: #fff; /* Fields are now white */
+}
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+select:focus {
+  border-color: #007bff;
+  outline: none;
+}
+.optional {
+  font-weight: 400;
+  font-style: italic;
+  color: #999;
+  font-size: 0.8em;
+  margin-left: 4px;
+}
+button[type="submit"] {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 12px;
+  font-size: 1.1em;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: background 0.3s;
+}
+button[type="submit"]:hover {
+  background: #0056b3;
+}
+.login-link {
+  margin-top: 15px;
+  text-align: center;
+  color: #555;
+  font-size: 0.9em;
+}
+.login-link a {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 600;
+}
+.login-link a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive adjustments for mobile devices */
+@media (max-width: 600px) {
+  /* Stack navbar items vertically and center them */
+  nav {
+    flex-direction: column;
+    gap: 15px; /* Add vertical space between stacked items */
+    padding: 15px;
+  }
+
+  /* Reduce margin on the main container so it doesn't touch the screen edges */
+  .container {
+    margin: 20px;
+    padding: 20px 15px; /* Adjust padding for smaller screens */
+  }
+
+  /* Stack fields that are in a row */
+  .field-row {
+    flex-direction: column;
+  }
+
+  h2 {
+    font-size: 1.5em; /* Slightly reduce heading size */
+  }
+}
