@@ -1,9 +1,0 @@
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-npm run dev
-node server.js
-
-http://localhost:5173/ → Home page (your B2B marketplace UI)
-
-http://localhost:5173/login → Login page
-
-http://localhost:5173/register → Register page
