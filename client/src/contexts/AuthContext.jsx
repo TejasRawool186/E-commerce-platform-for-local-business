@@ -45,11 +45,49 @@ export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   const login = async (email, password) => {
-    return { success: false, message: 'Auth disabled in frontend-only mode' };
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        dispatch({ type: 'LOGIN_SUCCESS', payload: data });
+        localStorage.setItem('token', data.token);
+        return { success: true };
+      } else {
+        return { success: false, message: data.message || 'Login failed' };
+      }
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
   };
 
   const register = async (userData) => {
-    return { success: false, message: 'Auth disabled in frontend-only mode' };
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        dispatch({ type: 'LOGIN_SUCCESS', payload: data });
+        localStorage.setItem('token', data.token);
+        return { success: true };
+      } else {
+        return { success: false, message: data.message || 'Registration failed' };
+      }
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
   };
 
   const logout = () => {

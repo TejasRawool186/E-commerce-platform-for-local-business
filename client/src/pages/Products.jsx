@@ -19,13 +19,13 @@ const Products = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const categories = [
-    'Electronics',
-    'Machinery', 
-    'Furniture',
-    'Food',
-    'Textiles',
-    'Chemicals',
-    'Other'
+    'electronics',
+    'machinery', 
+    'furniture',
+    'food',
+    'textiles',
+    'chemicals',
+    'other'
   ];
 
   const priceRanges = [
