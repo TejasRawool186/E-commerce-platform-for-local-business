@@ -1,0 +1,55 @@
+.contact-container-ab {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 16rem); /* Adjust based on your header/footer height */
+    padding: 2rem 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+}
+
+.contact-content-ab {
+    background-color: #fff;
+    padding: 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    flex-grow: 1;
+}
+
+.contact-content-ab h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4a4a4a;
+    text-align: center;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 1rem;
+}
+
+.contact-links {
+    line-height: 1.6;
+}
+
+.contact-links p {
+    margin: 0.5rem 0 1.5rem;
+    color: #555;
+    font-size: 1rem;
+}
+
+.contact-links strong {
+    display: block;
+    font-size: 1.25rem;
+    color: #007bff; /* A nice blue color */
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.footer {
+    text-align: center;
+    padding: 1.5rem 0;
+    border-top: 1px solid #e0e0e0;
+    color: #777;
+    font-size: 0.9rem;
+}

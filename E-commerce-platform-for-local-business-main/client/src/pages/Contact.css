@@ -1,0 +1,113 @@
+/* contact.css */
+
+
+:root {
+  --primary-text-color: #000000;
+  --secondary-text-color: #000000;
+  --background-color: #1a082b;
+  --link-box-color: rgba(255, 255, 255, 0.05);
+  --link-border-color: rgba(255, 255, 255, 0.2);
+  --accent-color: #9b59b6;
+}
+
+/* Global Styles & Container */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', sans-serif; /* A modern, clean font */
+  background-color: var(--background-color);
+  color: var(--primary-text-color);
+  line-height: 1.6;
+}
+
+.contact-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  text-align: center;
+  position: relative; /* Needed for the background elements */
+  overflow: hidden; /* Ensures floating elements stay within the container */
+}
+
+/* Content Section */
+.contact-content {
+  max-width: 700px;
+  margin-bottom: 3rem;
+  z-index: 1; /* Ensures text is above background elements */
+}
+
+.contact-content h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  position: relative;
+  display: inline-block;
+}
+
+.contact-content h1::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 50%;
+  height: 3px;
+  background: linear-gradient(to right, #0074e0, #a70000);
+  border-radius: 2px;
+}
+
+.contact-content p {
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  color: var(--secondary-text-color);
+  max-width: 550px;
+  margin: 1rem auto 0;
+}
+
+/* Contact Links */
+.contact-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.2rem;
+  margin-top: 3rem;
+}
+
+.contact-link-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--link-border-color);
+  border-radius: 50px;
+  background-color: var(--link-box-color);
+  color: var(--primary-text-color);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.contact-link-item:hover {
+  transform: translateY(-5px);
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent-color);
+}
+
+.contact-link-item svg {
+  font-size: 1.2rem;
+}
+
+/* Footer Section */
+.footer {
+  margin-top: 4rem;
+  font-size: 0.85rem;
+  color: var(--secondary-text-color);
+  z-index: 1;
+}
+
+.footer p {
+  margin: 0.5rem 0;
+}

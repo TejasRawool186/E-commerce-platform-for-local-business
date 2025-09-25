@@ -1,0 +1,16 @@
+{
+  "name": "localb2b",
+  "version": "1.0.0",
+  "description": "B2B Marketplace Platform",
+  "main": "client/src/main.jsx",
+  "scripts": {
+    "dev": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "preview": "cd client && npm run preview",
+    "install-all": "cd client && npm install"
+  },
+  "keywords": ["b2b", "marketplace", "react", "vite"],
+  "author": "LocalB2B Team",
+  "license": "MIT",
+  "devDependencies": {}
+}
