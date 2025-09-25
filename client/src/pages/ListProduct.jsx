@@ -91,6 +91,8 @@ const ListProduct = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['seller-products']);
       queryClient.invalidateQueries(['products']);
+      queryClient.invalidateQueries(['featured-products']);
+      queryClient.invalidateQueries(['seller-stats']);
       alert('Product listed successfully!');
       setLocation('/seller');
     },

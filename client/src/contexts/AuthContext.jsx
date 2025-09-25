@@ -92,11 +92,36 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     dispatch({ type: 'LOGOUT' });
+    localStorage.removeItem('token');
   };
 
   const updateUser = (userData) => {
     dispatch({ type: 'SET_USER', payload: { ...state.user, ...userData } });
   };
+
+  // Check for existing token on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Verify token and get user data
+      fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && !data.message) {
+          dispatch({ type: 'SET_USER', payload: data });
+        } else {
+          localStorage.removeItem('token');
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('token');
+      });
+    }
+  }, []);
 
   const value = {
     ...state,
