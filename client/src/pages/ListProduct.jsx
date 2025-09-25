@@ -4,13 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Upload, 
-  X, 
-  Loader2, 
-  ArrowLeft,
-  Package
-} from 'lucide-react';
+import { Upload, X, Loader as Loader2, ArrowLeft, Package } from 'lucide-react';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required').max(200, 'Name too long'),
