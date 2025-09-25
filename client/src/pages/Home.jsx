@@ -21,18 +21,12 @@ const Home = () => {
     }
   });
 
-  const stats = [
-    { label: 'Active Sellers', value: '500+', icon: Users },
-    { label: 'Products Listed', value: '2,500+', icon: Package },
-    { label: 'Orders Completed', value: '10,000+', icon: TrendingUp },
-    { label: 'Cities Covered', value: '50+', icon: MapPin }
-  ];
 
   return (
     <div>
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-primary-500 to-primary-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Connect with Local B2B Suppliers
@@ -45,7 +39,7 @@ const Home = () => {
               <Link href="/register" className="btn-primary bg-white text-primary-500 hover:bg-gray-100 px-8 py-3 text-lg">
                 Start Selling
               </Link>
-              <Link href="/products" className="btn-secondary border-white text-white hover:bg-white hover:text-primary-500 px-8 py-3 text-lg">
+              <Link href="/products" className="btn-secondary border-white text-primary-500 hover:bg-white hover:text-primary-500 px-8 py-3 text-lg">
                 Browse Products
               </Link>
             </div>
@@ -68,21 +62,35 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
-                  <stat.icon className="w-8 h-8 text-primary-500" />
-                </div>
-                <div className="text-3xl font-bold text-text-primary mb-2">{stat.value}</div>
-                <div className="text-text-secondary">{stat.label}</div>
-              </div>
-            ))}
+      
+
+      {/* slider  */}
+      <section className=" bg-background py-3">
+        <div id="carouselExample" className="carousel slide">
+          <div className="carousel-inner">
+            <div className="carousel-item active">
+              <img src=".\image\slider3.png" className="d-block w-100" alt="slider first image" />
+            </div>
+            <div className="carousel-item">
+              <img src=".\image\slider1.png" className="d-block w-100" alt="slider second image" />
+            </div>
+            <div className="carousel-item">
+              <img src=".\image\slider2.png" className="d-block w-100" alt="slider third image" />
+            </div>
           </div>
+          <button className="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
+            <span className="carousel-control-prev-icon" aria-hidden="true" />
+            <span className="visually-hidden">Previous</span>
+          </button>
+          <button className="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
+            <span className="carousel-control-next-icon" aria-hidden="true" />
+            <span className="visually-hidden">Next</span>
+          </button>
         </div>
+
+
+
+
       </section>
 
       {/* Featured Products */}
@@ -182,7 +190,7 @@ const Home = () => {
             <Link href="/register" className="btn-primary bg-white text-primary-500 hover:bg-gray-100 px-8 py-3 text-lg">
               Register as Seller
             </Link>
-            <Link href="/register" className="btn-secondary border-white text-white hover:bg-white hover:text-primary-500 px-8 py-3 text-lg">
+            <Link href="/register" className="btn-secondary border-white text-primary-500 hover:bg-white hover:text-primary-500 px-8 py-3 text-lg">
               Register as Retailer
             </Link>
           </div>

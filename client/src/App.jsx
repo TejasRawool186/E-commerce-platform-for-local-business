@@ -14,6 +14,7 @@ import ProductDetail from './pages/ProductDetail';
 import ListProduct from './pages/ListProduct';
 import ProtectedRoute from './components/ProtectedRoute';
 
+
 const AppRoutes = () => {
   const { isAuthenticated, user, loading } = useAuth();
 
@@ -28,16 +29,20 @@ const AppRoutes = () => {
   return (
     <Router>
       <Layout>
+       
         <Route path="/" component={Home} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
         <Route path="/products" component={Products} />
         <Route path="/products/:id" component={ProductDetail} />
         
+         
+        
         <ProtectedRoute path="/seller" component={SellerDashboard} allowedRoles={['seller']} />
         <ProtectedRoute path="/seller/products/new" component={ListProduct} allowedRoles={['seller']} />
         <ProtectedRoute path="/retailer" component={RetailerDashboard} allowedRoles={['retailer']} />
         <ProtectedRoute path="/admin" component={AdminDashboard} allowedRoles={['admin']} />
+        
       </Layout>
     </Router>
   );
@@ -47,9 +52,12 @@ function App() {
   return (
     <QueryProvider>
       <AuthProvider>
+        
         <AppRoutes />
       </AuthProvider>
     </QueryProvider>
+
+    
   );
 }
 
