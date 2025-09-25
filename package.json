@@ -4,7 +4,7 @@
   "description": "B2B Marketplace Platform",
   "main": "client/src/main.jsx",
   "scripts": {
-    "dev": "cd client && npm run dev",
+    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
     "build": "cd client && npm run build",
     "preview": "cd client && npm run preview",
     "install-all": "cd client && npm install"
