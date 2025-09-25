@@ -7,7 +7,7 @@
     "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
     "build": "cd client && npm run build",
     "preview": "cd client && npm run preview",
-    "install-all": "cd client && npm install"
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   },
   "keywords": [
     "b2b",
@@ -17,13 +17,7 @@
   ],
   "author": "LocalB2B Team",
   "license": "MIT",
-  "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.18.2",
-    "multer": "^2.0.2"
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
