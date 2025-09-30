@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import api from '../utils/api';
 import { 
   ShoppingCart, 
   Package, 
@@ -16,27 +17,20 @@ import {
 const RetailerDashboard = () => {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['retailer-stats'],
-    queryFn: async () => {
-      const response = await fetch('/api/orders/stats/retailer');
-      if (!response.ok) throw new Error('Failed to fetch stats');
-      return response.json();
-    }
+    queryFn: () => api.getRetailerStats()
   });
 
   const { data: recentOrders, isLoading: ordersLoading } = useQuery({
     queryKey: ['retailer-orders'],
-    queryFn: async () => {
-      const response = await fetch('/api/retailer/orders?limit=10');
-      if (!response.ok) throw new Error('Failed to fetch orders');
-      return response.json();
-    }
+    queryFn: () => api.getRetailerOrders({ limit: 10 })
   });
 
   const getStatusClass = (status) => {
     switch (status) {
       case 'pending': return 'status-pending';
-      case 'processing': return 'status-processing';
+      case 'ordered': return 'status-processing';
       case 'shipped': return 'status-shipped';
+      case 'out_for_delivery': return 'status-processing';
       case 'delivered': return 'status-delivered';
       case 'cancelled': return 'status-cancelled';
       default: return 'status-pending';
@@ -106,13 +100,27 @@ const RetailerDashboard = () => {
 
           <div className="card p-6">
             <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-full">
+                <Package className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-text-secondary">Ordered</p>
+                <p className="text-2xl font-bold text-text-primary">
+                  {stats?.stats?.orderedOrders || 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-6">
+            <div className="flex items-center">
               <div className="p-3 bg-purple-100 rounded-full">
                 <Package className="w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-text-secondary">Delivered Orders</p>
+                <p className="text-sm font-medium text-text-secondary">Out for Delivery</p>
                 <p className="text-2xl font-bold text-text-primary">
-                  {stats?.stats?.deliveredOrders || 0}
+                  {stats?.stats?.ofdOrders || 0}
                 </p>
               </div>
             </div>
@@ -173,28 +181,28 @@ const RetailerDashboard = () => {
                 </thead>
                 <tbody>
                   {recentOrders.orders.map((order) => (
-                    <tr key={order._id} className="border-b border-gray-100">
-                      <td className="py-3 px-4 text-sm font-mono">#{order._id.slice(-8)}</td>
+                    <tr key={order.id || order._id} className="border-b border-gray-100">
+                      <td className="py-3 px-4 text-sm font-mono">#{(order.id || order._id).slice(-8)}</td>
                       <td className="py-3 px-4">
                         <div>
-                          <p className="font-medium text-text-primary">{order.productId?.name}</p>
-                          <p className="text-sm text-text-secondary">{order.productId?.category}</p>
+                          <p className="font-medium text-text-primary">{order.Product?.name || order.productId?.name}</p>
+                          <p className="text-sm text-text-secondary">{order.Product?.category || order.productId?.category}</p>
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <div>
-                          <p className="font-medium text-text-primary">{order.sellerId?.businessName}</p>
+                          <p className="font-medium text-text-primary">{order.seller?.businessName || order.sellerId?.businessName}</p>
                           <p className="text-sm text-text-secondary flex items-center">
                             <MapPin className="w-3 h-3 mr-1" />
-                            {order.sellerId?.pincode}
+                            {order.seller?.pincode || order.sellerId?.pincode}
                           </p>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-sm">{order.quantity} {order.productId?.unit}</td>
+                      <td className="py-3 px-4 text-sm">{order.quantity} {order.Product?.unit || order.productId?.unit}</td>
                       <td className="py-3 px-4 text-sm font-medium">₹{order.totalAmount.toLocaleString()}</td>
                       <td className="py-3 px-4">
                         <span className={getStatusClass(order.status)}>
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          {order.status.replaceAll('_',' ').replace(/\b\w/g, c => c.toUpperCase())}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-sm text-text-secondary">
@@ -239,7 +247,7 @@ const RetailerDashboard = () => {
         </div>
 
         {/* Order Status Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-yellow-600 mb-1">
               {stats?.stats?.pendingOrders || 0}
@@ -269,6 +277,30 @@ const RetailerDashboard = () => {
               {stats?.stats?.cancelledOrders || 0}
             </div>
             <div className="text-sm text-text-secondary">Cancelled</div>
+          </div>
+        </div>
+
+        {/* Shopping Analytics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="card p-6 text-center">
+            <div className="text-3xl font-bold text-green-600 mb-2">
+              {stats?.stats?.totalSpent > 0 ? '₹' + (stats.stats.totalSpent / 1000).toFixed(1) + 'K' : '₹0'}
+            </div>
+            <div className="text-text-secondary">Total Spent</div>
+          </div>
+          <div className="card p-6 text-center">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
+              {stats?.stats?.totalOrders > 0 ? Math.round(stats.stats.totalSpent / stats.stats.totalOrders) : 0}
+            </div>
+            <div className="text-text-secondary">Avg Order Value (₹)</div>
+          </div>
+          <div className="card p-6 text-center">
+            <div className="text-3xl font-bold text-purple-600 mb-2">
+              {stats?.stats?.deliveredOrders > 0 && stats?.stats?.totalOrders > 0 
+                ? Math.round((stats.stats.deliveredOrders / stats.stats.totalOrders) * 100) 
+                : 0}%
+            </div>
+            <div className="text-text-secondary">Success Rate</div>
           </div>
         </div>
       </div>

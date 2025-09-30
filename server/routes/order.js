@@ -5,7 +5,8 @@ const {
   getRetailerOrders, 
   getSellerOrders,
   getRetailerStats,
-  getSellerStats
+  getSellerStats,
+  updateOrderStatus
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -23,5 +24,8 @@ router.get('/seller', protect, getSellerOrders);
 
 // Seller stats
 router.get('/stats/seller', protect, getSellerStats);
+
+// Update order status (seller only)
+router.put('/:id/status', protect, updateOrderStatus);
 
 module.exports = router;

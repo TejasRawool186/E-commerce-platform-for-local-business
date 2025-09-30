@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { createProduct, getProducts, getProductById, getSellerProducts } = require('../controllers/productController');
+const { 
+  createProduct, 
+  getProducts, 
+  getProductById, 
+  getSellerProducts,
+  updateProduct,
+  deleteProduct,
+  toggleProductStatus
+} = require('../controllers/productController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
@@ -14,6 +22,9 @@ router.post('/', protect, createProduct);
 
 // Seller routes
 router.get('/seller/my', protect, getSellerProducts);
+router.put('/seller/:id', protect, updateProduct);
+router.delete('/seller/:id', protect, deleteProduct);
+router.patch('/seller/:id/toggle', protect, toggleProductStatus);
 
 // Retailer routes  
 router.get('/retailer/orders', protect, require('../controllers/orderController').getRetailerOrders);

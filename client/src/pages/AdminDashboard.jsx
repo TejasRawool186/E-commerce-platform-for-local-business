@@ -21,7 +21,12 @@ const AdminDashboard = () => {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/stats');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch stats');
       return response.json();
     }
@@ -30,12 +35,17 @@ const AdminDashboard = () => {
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['admin-users', searchTerm, selectedRole],
     queryFn: async () => {
+      const token = localStorage.getItem('token');
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
       if (selectedRole) params.append('role', selectedRole);
       params.append('limit', '20');
       
-      const response = await fetch(`/api/admin/users?${params}`);
+      const response = await fetch(`/api/admin/users?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch users');
       return response.json();
     }
@@ -43,10 +53,12 @@ const AdminDashboard = () => {
 
   const updateUserStatusMutation = useMutation({
     mutationFn: async ({ userId, isActive }) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/users/${userId}/status`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ isActive })
       });
@@ -69,9 +81,12 @@ const AdminDashboard = () => {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
-        
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       if (!response.ok) {
@@ -201,6 +216,34 @@ const AdminDashboard = () => {
               {stats?.stats?.activeProducts || 0}
             </div>
             <div className="text-text-secondary">Active Products</div>
+          </div>
+        </div>
+
+        {/* Platform Analytics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="card p-6 text-center">
+            <div className="text-2xl font-bold text-green-600 mb-2">
+              {stats?.stats?.totalSales > 0 ? '₹' + (stats.stats.totalSales / 100000).toFixed(1) + 'L' : '₹0'}
+            </div>
+            <div className="text-text-secondary">Platform Revenue</div>
+          </div>
+          <div className="card p-6 text-center">
+            <div className="text-2xl font-bold text-blue-600 mb-2">
+              {stats?.stats?.totalOrders > 0 ? Math.round(stats.stats.totalSales / stats.stats.totalOrders) : 0}
+            </div>
+            <div className="text-text-secondary">Avg Order Value</div>
+          </div>
+          <div className="card p-6 text-center">
+            <div className="text-2xl font-bold text-purple-600 mb-2">
+              {stats?.stats?.totalProducts > 0 ? Math.round((stats.stats.activeProducts / stats.stats.totalProducts) * 100) : 0}%
+            </div>
+            <div className="text-text-secondary">Product Activation Rate</div>
+          </div>
+          <div className="card p-6 text-center">
+            <div className="text-2xl font-bold text-yellow-600 mb-2">
+              {stats?.stats?.totalUsers > 0 ? Math.round((stats.stats.totalSellers + stats.stats.totalRetailers) / stats.stats.totalUsers * 100) : 0}%
+            </div>
+            <div className="text-text-secondary">Active User Rate</div>
           </div>
         </div>
 

@@ -1,6 +1,5 @@
-const User = require('../models/User');
-const Product = require('../models/Product');
-const Order = require('../models/Order');
+const { sequelize, User, Product, Order } = require('../sequelize');
+const { Op } = require('sequelize');
 
 // Get all users
 exports.getUsers = async (req, res) => {
@@ -9,26 +8,26 @@ exports.getUsers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
     
-    const query = {};
-    
-    // Search functionality
+    const where = {};
     if (req.query.search) {
-      query.$or = [
-        { firstName: { $regex: req.query.search, $options: 'i' } },
-        { lastName: { $regex: req.query.search, $options: 'i' } },
-        { email: { $regex: req.query.search, $options: 'i' } },
-        { businessName: { $regex: req.query.search, $options: 'i' } }
+      const term = `%${req.query.search}%`;
+      where[Op.or] = [
+        { firstName: { [Op.like]: term } },
+        { lastName: { [Op.like]: term } },
+        { email: { [Op.like]: term } },
+        { businessName: { [Op.like]: term } }
       ];
     }
-    
-    if (req.query.role) query.role = req.query.role;
-    
-    const totalUsers = await User.countDocuments(query);
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    if (req.query.role) where.role = req.query.role;
+
+    const totalUsers = await User.count({ where });
+    const users = await User.findAll({
+      where,
+      attributes: { exclude: ['password'] },
+      order: [['createdAt','DESC']],
+      offset: skip,
+      limit
+    });
     
     res.json({ 
       users,
@@ -48,7 +47,7 @@ exports.getUsers = async (req, res) => {
 // Delete user
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     
     // Don't allow deleting admin users
@@ -56,7 +55,7 @@ exports.deleteUser = async (req, res) => {
       return res.status(403).json({ message: 'Cannot delete admin users' });
     }
     
-    await User.findByIdAndDelete(req.params.id);
+    await User.destroy({ where: { id: req.params.id } });
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -67,7 +66,7 @@ exports.deleteUser = async (req, res) => {
 exports.updateUserStatus = async (req, res) => {
   try {
     const { isActive } = req.body;
-    const user = await User.findById(req.params.id);
+    const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     
     user.isActive = isActive;
@@ -86,19 +85,19 @@ exports.updateUserStatus = async (req, res) => {
 // Platform stats
 exports.getStats = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalSellers = await User.countDocuments({ role: 'seller' });
-    const totalRetailers = await User.countDocuments({ role: 'retailer' });
-    const totalAdmins = await User.countDocuments({ role: 'admin' });
-    const totalProducts = await Product.countDocuments();
-    const activeProducts = await Product.countDocuments({ isActive: true });
-    const totalOrders = await Order.countDocuments();
-    
-    const totalSalesResult = await Order.aggregate([
-      { $match: { status: { $ne: 'cancelled' } } },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    const totalSales = totalSalesResult.length > 0 ? totalSalesResult[0].total : 0;
+    const totalUsers = await User.count();
+    const totalSellers = await User.count({ where: { role: 'seller' } });
+    const totalRetailers = await User.count({ where: { role: 'retailer' } });
+    const totalAdmins = await User.count({ where: { role: 'admin' } });
+    const totalProducts = await Product.count();
+    const activeProducts = await Product.count({ where: { isActive: true } });
+    const totalOrders = await Order.count();
+
+    const totalSalesRow = await Order.findAll({
+      where: { status: { [Op.ne]: 'cancelled' } },
+      attributes: [[sequelize.fn('SUM', sequelize.col('totalAmount')), 'total']]
+    });
+    const totalSales = parseFloat(totalSalesRow[0]?.get('total') || 0);
     
     res.json({ 
       stats: {
@@ -120,11 +119,15 @@ exports.getStats = async (req, res) => {
 // Recent activity (last 10 orders)
 exports.getRecentActivity = async (req, res) => {
   try {
-    const recentOrders = await Order.find()
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .populate('productId', 'name category')
-      .populate('retailerId sellerId', 'businessName');
+    const recentOrders = await Order.findAll({
+      order: [['createdAt','DESC']],
+      limit: 10,
+      include: [
+        { model: Product, attributes: ['name','category'] },
+        { model: User, as: 'retailer', attributes: ['businessName'] },
+        { model: User, as: 'seller', attributes: ['businessName'] }
+      ]
+    });
     res.json({ orders: recentOrders });
   } catch (err) {
     res.status(500).json({ message: err.message });

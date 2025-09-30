@@ -1,4 +1,5 @@
-const User = require('../models/User');
+// Sequelize models
+const { User } = require('../sequelize');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -9,7 +10,7 @@ exports.registerUser = async (req, res) => {
     if (!email || !password || !role || !firstName || !lastName || !address || !pincode) {
       return res.status(400).json({ message: 'Please fill all required fields.' });
     }
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ where: { email } });
     if (userExists) return res.status(400).json({ message: 'User already exists.' });
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
@@ -19,15 +20,15 @@ exports.registerUser = async (req, res) => {
       firstName,
       lastName,
       businessName,
-      businessType: role === 'seller' ? businessType : undefined,
+      businessType: role === 'seller' ? businessType : null,
       address,
       pincode,
       phone,
       whatsapp
     });
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({
-      user: { id: user._id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
+      user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
       token
     });
   } catch (err) {
@@ -39,13 +40,13 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
     if (!user) return res.status(400).json({ message: 'Invalid credentials.' });
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials.' });
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({
-      user: { id: user._id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
+      user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
       token
     });
   } catch (err) {
@@ -56,7 +57,7 @@ exports.loginUser = async (req, res) => {
 // Get Current User
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });

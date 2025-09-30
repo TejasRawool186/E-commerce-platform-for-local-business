@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../utils/api';
 import { 
   Package, 
   MapPin, 
@@ -26,29 +27,12 @@ const ProductDetail = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['product', id],
     queryFn: async () => {
-      const response = await fetch(`/api/products/${id}`);
-      if (!response.ok) throw new Error('Failed to fetch product');
-      return response.json();
+      return api.getProduct(id);
     }
   });
 
   const placeOrderMutation = useMutation({
-    mutationFn: async (orderData) => {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(orderData)
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message);
-      }
-      
-      return response.json();
-    },
+    mutationFn: async (orderData) => api.placeOrder(orderData),
     onSuccess: () => {
       queryClient.invalidateQueries(['retailer-orders']);
       alert('Order placed successfully!');
@@ -60,7 +44,7 @@ const ProductDetail = () => {
   });
 
   const product = data?.product;
-  const seller = product?.sellerId;
+  const seller = product?.seller || product?.sellerId; // backward compatibility
 
   const handleQuantityChange = (e) => {
     const value = parseInt(e.target.value);
@@ -80,13 +64,15 @@ const ProductDetail = () => {
       return;
     }
 
-    if (user._id === seller._id) {
+    const userId = user.id || user._id;
+    const sellerId = seller?.id || seller?._id;
+    if (userId === sellerId) {
       alert('Cannot order your own product');
       return;
     }
 
     placeOrderMutation.mutate({
-      productId: product._id,
+      productId: product.id || product._id,
       quantity: quantity,
       notes: orderNotes
     });

@@ -1,0 +1,425 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation, useRoute } from 'wouter';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Upload, X, Loader as Loader2, ArrowLeft, Package, Save } from 'lucide-react';
+
+const productSchema = z.object({
+  name: z.string().min(1, 'Product name is required').max(200, 'Name too long'),
+  description: z.string().min(1, 'Description is required').max(2000, 'Description too long'),
+  category: z.string().min(1, 'Category is required'),
+  price: z.number().min(0, 'Price must be positive'),
+  moq: z.number().min(1, 'MOQ must be at least 1'),
+  unit: z.string().min(1, 'Unit is required'),
+  brand: z.string().optional(),
+  leadTime: z.number().min(0, 'Lead time cannot be negative').optional()
+});
+
+const EditProduct = () => {
+  const [, setLocation] = useLocation();
+  const [, params] = useRoute('/seller/products/edit/:id');
+  const queryClient = useQueryClient();
+  const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  const { data: product, isLoading: productLoading } = useQuery({
+    queryKey: ['product', params.id],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/products/${params.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch product');
+      return response.json();
+    },
+    enabled: !!params.id
+  });
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    reset
+  } = useForm({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      unit: 'pieces'
+    }
+  });
+
+  // Update form when product data loads
+  useEffect(() => {
+    if (product?.product) {
+      const productData = product.product;
+      reset({
+        name: productData.name,
+        description: productData.description,
+        category: productData.category,
+        price: productData.price,
+        moq: productData.moq,
+        unit: productData.unit,
+        brand: productData.brand || '',
+        leadTime: productData.leadTime || 0
+      });
+      setImages(productData.images || []);
+    }
+  }, [product, reset]);
+
+  const categories = [
+    'electronics',
+    'machinery',
+    'furniture',
+    'food',
+    'textiles',
+    'chemicals',
+    'other'
+  ];
+
+  const units = [
+    'pieces',
+    'kg',
+    'meters',
+    'liters',
+    'boxes',
+    'tons',
+    'dozens'
+  ];
+
+  const updateProductMutation = useMutation({
+    mutationFn: async (productData) => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Not authorized, no token');
+      }
+      
+      const response = await fetch(`/api/seller/products/${params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...productData,
+          images: images
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update product');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['seller-products']);
+      queryClient.invalidateQueries(['product', params.id]);
+      alert('Product updated successfully!');
+      setLocation('/seller/products');
+    },
+    onError: (error) => {
+      alert(`Failed to update product: ${error.message}`);
+    }
+  });
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    
+    if (files.length + images.length > 5) {
+      alert('Maximum 5 images allowed');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Create temporary URLs for preview
+      const tempUrls = files.map(file => URL.createObjectURL(file));
+      setImages(prev => [...prev, ...tempUrls]);
+      
+      // For now, we'll just use the temporary URLs
+      // In a production environment, you would implement proper file upload
+      
+    } catch (error) {
+      alert('Failed to upload images');
+      console.error('Upload error:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const onSubmit = (data) => {
+    if (images.length === 0) {
+      alert('Please upload at least one image');
+      return;
+    }
+
+    updateProductMutation.mutate(data);
+  };
+
+  if (productLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+      </div>
+    );
+  }
+
+  if (!product?.product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-text-primary mb-2">Product not found</h3>
+          <p className="text-text-secondary mb-6">The product you're looking for doesn't exist or you don't have permission to edit it.</p>
+          <button
+            onClick={() => setLocation('/seller/products')}
+            className="btn-primary"
+          >
+            Back to Products
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex items-center mb-8">
+          <button
+            onClick={() => setLocation('/seller/products')}
+            className="flex items-center text-text-secondary hover:text-text-primary mr-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Products
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-text-primary">Edit Product</h1>
+            <p className="text-text-secondary">Update your product information</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          {/* Image Upload Section */}
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold text-text-primary mb-4">Product Images</h3>
+            
+            <div className="space-y-4">
+              {/* Upload Area */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-500 transition-colors">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="image-upload"
+                  disabled={uploading || images.length >= 5}
+                />
+                <label
+                  htmlFor="image-upload"
+                  className={`cursor-pointer ${uploading || images.length >= 5 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-text-secondary mb-2">
+                    {uploading ? 'Uploading...' : 'Click to upload images'}
+                  </p>
+                  <p className="text-sm text-text-secondary">
+                    PNG, JPG, GIF up to 10MB each (max 5 images)
+                  </p>
+                </label>
+              </div>
+
+              {/* Image Preview Grid */}
+              {images.length > 0 && (
+                <div className="grid grid-cols-5 gap-4">
+                  {images.map((image, index) => (
+                    <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                      <img
+                        src={image}
+                        alt={`Product ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Product Details */}
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold text-text-primary mb-6">Product Details</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Product Name */}
+              <div className="md:col-span-2">
+                <label className="form-label">Product Name *</label>
+                <input
+                  {...register('name')}
+                  type="text"
+                  className={`input-field ${errors.name ? 'border-red-500' : ''}`}
+                  placeholder="Enter product name"
+                />
+                {errors.name && (
+                  <p className="form-error">{errors.name.message}</p>
+                )}
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="form-label">Category *</label>
+                <select
+                  {...register('category')}
+                  className={`input-field ${errors.category ? 'border-red-500' : ''}`}
+                >
+                  <option value="">Select category</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+                {errors.category && (
+                  <p className="form-error">{errors.category.message}</p>
+                )}
+              </div>
+
+              {/* Brand */}
+              <div>
+                <label className="form-label">Brand (Optional)</label>
+                <input
+                  {...register('brand')}
+                  type="text"
+                  className="input-field"
+                  placeholder="Enter brand name"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="md:col-span-2">
+                <label className="form-label">Description *</label>
+                <textarea
+                  {...register('description')}
+                  rows={4}
+                  className={`input-field ${errors.description ? 'border-red-500' : ''}`}
+                  placeholder="Describe your product in detail"
+                />
+                {errors.description && (
+                  <p className="form-error">{errors.description.message}</p>
+                )}
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="form-label">Price per Unit (₹) *</label>
+                <input
+                  {...register('price', { valueAsNumber: true })}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={`input-field ${errors.price ? 'border-red-500' : ''}`}
+                  placeholder="0.00"
+                />
+                {errors.price && (
+                  <p className="form-error">{errors.price.message}</p>
+                )}
+              </div>
+
+              {/* MOQ */}
+              <div>
+                <label className="form-label">Minimum Order Quantity *</label>
+                <input
+                  {...register('moq', { valueAsNumber: true })}
+                  type="number"
+                  min="1"
+                  className={`input-field ${errors.moq ? 'border-red-500' : ''}`}
+                  placeholder="1"
+                />
+                {errors.moq && (
+                  <p className="form-error">{errors.moq.message}</p>
+                )}
+              </div>
+
+              {/* Unit */}
+              <div>
+                <label className="form-label">Unit *</label>
+                <select
+                  {...register('unit')}
+                  className={`input-field ${errors.unit ? 'border-red-500' : ''}`}
+                >
+                  {units.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {unit}
+                    </option>
+                  ))}
+                </select>
+                {errors.unit && (
+                  <p className="form-error">{errors.unit.message}</p>
+                )}
+              </div>
+
+              {/* Lead Time */}
+              <div>
+                <label className="form-label">Lead Time (Days) (Optional)</label>
+                <input
+                  {...register('leadTime', { valueAsNumber: true })}
+                  type="number"
+                  min="0"
+                  className="input-field"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-end space-x-4">
+            <button
+              type="button"
+              onClick={() => setLocation('/seller/products')}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={updateProductMutation.isPending}
+              className="btn-primary flex items-center"
+            >
+              {updateProductMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Update Product
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default EditProduct;
+
+
