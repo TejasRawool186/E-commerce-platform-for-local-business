@@ -3,15 +3,7 @@ import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
-import {
-  Package,
-  MapPin,
-  Phone,
-  Mail,
-  ShoppingCart,
-  Loader2,
-  ArrowLeft
-} from 'lucide-react';
+import { Package, MapPin, Phone, Mail, ShoppingCart, Loader as Loader2, ArrowLeft } from 'lucide-react';
 
 const ProductDetail = () => {
   const { id } = useParams();
