@@ -1,306 +1,285 @@
-const { sequelize, Order, Product, User, OrderTimeline } = require('../sequelize');
-const { Op } = require('sequelize');
-const twilio = require('twilio');
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
+const { supabase } = require('../config/supabase');
+const { generateInvoice } = require('../utils/invoiceGenerator');
+const { sendSMS } = require('../utils/sms');
 const path = require('path');
+const fs = require('fs');
 
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
-
-async function sendSMS(to, body) {
-  if (!twilioClient || !to) return;
-  try {
-    await twilioClient.messages.create({ from: process.env.TWILIO_FROM, to, body });
-  } catch (e) {
-    console.error('SMS error:', e.message);
+const ensureInvoicesDir = () => {
+  const invoicesDir = path.join(__dirname, '../invoices');
+  if (!fs.existsSync(invoicesDir)) {
+    fs.mkdirSync(invoicesDir, { recursive: true });
   }
-}
+  return invoicesDir;
+};
 
-function generateInvoice(order) {
-  const invoicesDir = path.join(__dirname, '..', 'uploads', 'invoices');
-  if (!fs.existsSync(invoicesDir)) fs.mkdirSync(invoicesDir, { recursive: true });
-  const invoicePath = path.join(invoicesDir, `${order.id}.pdf`);
-  const doc = new PDFDocument();
-  doc.pipe(fs.createWriteStream(invoicePath));
-  doc.fontSize(18).text('Invoice', { underline: true });
-  doc.moveDown();
-  doc.fontSize(12).text(`Order ID: ${order.id}`);
-  doc.text(`Date: ${new Date(order.createdAt).toLocaleString()}`);
-  doc.moveDown();
-  doc.text(`Retailer: ${order.retailer?.businessName || order.retailer?.firstName || ''}`);
-  doc.text(`Seller: ${order.seller?.businessName || order.seller?.firstName || ''}`);
-  doc.moveDown();
-  doc.text(`Product: ${order.Product?.name}`);
-  doc.text(`Quantity: ${order.quantity} ${order.Product?.unit}`);
-  doc.text(`Unit Price: ₹${order.unitPrice}`);
-  doc.text(`Total: ₹${order.totalAmount}`);
-  doc.end();
-  return `/uploads/invoices/${order.id}.pdf`;
-}
-
-// Place new order
 exports.placeOrder = async (req, res) => {
   try {
-    const { productId, quantity, notes } = req.body;
-    
-    // Validation
-    if (!productId || !quantity) {
-      return res.status(400).json({ message: 'Product ID and quantity are required' });
+    const { productId, quantity } = req.body;
+
+    if (!productId || !quantity || quantity <= 0) {
+      return res.status(400).json({ message: 'Please provide valid product ID and quantity.' });
     }
-    
-    if (quantity < 1) {
-      return res.status(400).json({ message: 'Quantity must be at least 1' });
-    }
-    
-    const product = await Product.findByPk(productId, { include: [{ model: User, as: 'seller' }] });
+
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*, seller:users!products_seller_id_fkey(id, username, business_name, address, phone_number, email)')
+      .eq('id', productId)
+      .maybeSingle();
+
+    if (productError) throw productError;
+
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ message: 'Product not found.' });
     }
-    
-    if (!product.isActive) {
-      return res.status(400).json({ message: 'Product is not available' });
+
+    if (product.stock_quantity < quantity) {
+      return res.status(400).json({ message: 'Insufficient stock available.' });
     }
-    
-    if (quantity < product.moq) {
-      return res.status(400).json({ 
-        message: `Quantity must be at least ${product.moq} ${product.unit}` 
-      });
-    }
-    
-    // Check if retailer is trying to order their own product
-    if (req.user.id === product.sellerId) {
-      return res.status(400).json({ message: 'Cannot order your own product' });
-    }
-    
-    const totalAmount = product.price * quantity;
-    const order = await Order.create({
-      retailerId: req.user.id,
-      sellerId: product.sellerId,
-      productId,
-      quantity: parseInt(quantity),
-      unitPrice: product.price,
-      totalAmount,
-      status: 'pending',
-      notes: notes ? notes.trim() : ''
+
+    const { data: orderNumberData } = await supabase.rpc('generate_order_number');
+    const orderNumber = orderNumberData || `ORD-${Date.now()}`;
+
+    const totalAmount = parseFloat(product.price) * parseInt(quantity);
+
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        retailer_id: req.user.id,
+        seller_id: product.seller_id,
+        product_id: productId,
+        quantity: parseInt(quantity),
+        unit_price: parseFloat(product.price),
+        total_amount: totalAmount,
+        status: 'Ordered'
+      })
+      .select()
+      .single();
+
+    if (orderError) throw orderError;
+
+    const { error: updateError } = await supabase
+      .from('products')
+      .update({ stock_quantity: product.stock_quantity - quantity })
+      .eq('id', productId);
+
+    if (updateError) throw updateError;
+
+    res.status(201).json({
+      success: true,
+      message: 'Order placed successfully!',
+      order
     });
-    await OrderTimeline.create({ orderId: order.id, status: 'pending', message: 'Order placed by retailer' });
-    const populatedOrder = await Order.findByPk(order.id, {
-      include: [
-        { model: Product },
-        { model: User, as: 'seller', attributes: ['businessName','phone','whatsapp','email'] },
-        { model: User, as: 'retailer', attributes: ['businessName','phone'] },
-        { model: OrderTimeline, order: [['occurredAt','ASC']] }
-      ]
-    });
-    await sendSMS(populatedOrder.retailer?.phone, `Order placed: ${populatedOrder.Product?.name} x ${populatedOrder.quantity}. Total ₹${populatedOrder.totalAmount}`);
-    res.status(201).json({ success: true, order: populatedOrder });
   } catch (err) {
-    if (err.name === 'ValidationError') {
-      const errors = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ message: errors.join(', ') });
-    }
+    console.error('Place order error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// Get orders for retailer
 exports.getRetailerOrders = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    
-    const where = { retailerId: req.user.id };
-    const totalOrders = await Order.count({ where });
-    const orders = await Order.findAll({
-      where,
-      include: [
-        { model: Product },
-        { model: User, as: 'seller', attributes: ['businessName','phone','whatsapp','email','pincode'] },
-        { model: OrderTimeline }
-      ],
-      order: [['createdAt','DESC']],
-      offset: skip,
-      limit
-    });
-    
-    res.json({ 
-      orders,
-      pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(totalOrders / limit),
-        totalOrders,
-        hasNext: page < Math.ceil(totalOrders / limit),
-        hasPrev: page > 1
-      }
-    });
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        product:products(id, name, image_url),
+        seller:users!orders_seller_id_fkey(username, business_name, phone_number)
+      `)
+      .eq('retailer_id', req.user.id)
+      .order('order_date', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ orders });
   } catch (err) {
+    console.error('Get retailer orders error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// Get orders for seller
 exports.getSellerOrders = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    
-    const where = { sellerId: req.user.id };
-    const totalOrders = await Order.count({ where });
-    const orders = await Order.findAll({
-      where,
-      include: [
-        { model: Product },
-        { model: User, as: 'retailer', attributes: ['businessName','phone','whatsapp','email','pincode'] },
-        { model: OrderTimeline }
-      ],
-      order: [['createdAt','DESC']],
-      offset: skip,
-      limit
-    });
-    
-    res.json({ 
-      orders,
-      pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(totalOrders / limit),
-        totalOrders,
-        hasNext: page < Math.ceil(totalOrders / limit),
-        hasPrev: page > 1
-      }
-    });
+    const status = req.query.status;
+
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        product:products(id, name, image_url),
+        retailer:users!orders_retailer_id_fkey(username, business_name, phone_number, address)
+      `)
+      .eq('seller_id', req.user.id);
+
+    if (status === 'pending') {
+      query = query.in('status', ['Ordered', 'Shipped', 'Out for Delivery']);
+    } else if (status === 'completed') {
+      query = query.eq('status', 'Delivered');
+    }
+
+    query = query.order('order_date', { ascending: false });
+
+    const { data: orders, error } = await query;
+
+    if (error) throw error;
+
+    res.json({ orders });
   } catch (err) {
+    console.error('Get seller orders error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// Get order statistics for retailer
-exports.getRetailerStats = async (req, res) => {
+exports.getOrderById = async (req, res) => {
   try {
-    const whereRetailer = { retailerId: req.user.id };
-    const totalOrders = await Order.count({ where: whereRetailer });
-    const pendingOrders = await Order.count({ where: { ...whereRetailer, status: 'pending' } });
-    const orderedOrders = await Order.count({ where: { ...whereRetailer, status: 'ordered' } });
-    const shippedOrders = await Order.count({ where: { ...whereRetailer, status: 'shipped' } });
-    const ofdOrders = await Order.count({ where: { ...whereRetailer, status: 'out_for_delivery' } });
-    const deliveredOrders = await Order.count({ where: { ...whereRetailer, status: 'delivered' } });
-    const cancelledOrders = await Order.count({ where: { ...whereRetailer, status: 'cancelled' } });
-    const totalSpentRow = await Order.findAll({
-      where: { retailerId: req.user.id, status: { [Op.ne]: 'cancelled' } },
-      attributes: [[sequelize.fn('SUM', sequelize.col('totalAmount')), 'total']]
-    });
-    const totalSpent = parseFloat(totalSpentRow[0]?.get('total') || 0);
-    
-    res.json({
-      stats: {
-        totalOrders,
-        pendingOrders,
-        orderedOrders,
-        shippedOrders,
-        ofdOrders,
-        deliveredOrders,
-        cancelledOrders,
-        totalSpent
-      }
-    });
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        product:products(id, name, description, image_url),
+        seller:users!orders_seller_id_fkey(id, username, business_name, address, phone_number, email),
+        retailer:users!orders_retailer_id_fkey(id, username, business_name, address, phone_number, email)
+      `)
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found.' });
+    }
+
+    if (order.retailer_id !== req.user.id && order.seller_id !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to view this order.' });
+    }
+
+    res.json({ order });
   } catch (err) {
+    console.error('Get order error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// Get order statistics for seller
-exports.getSellerStats = async (req, res) => {
-  try {
-    const whereSeller = { sellerId: req.user.id };
-    const totalOrders = await Order.count({ where: whereSeller });
-    const pendingOrders = await Order.count({ where: { ...whereSeller, status: 'pending' } });
-    const orderedOrders = await Order.count({ where: { ...whereSeller, status: 'ordered' } });
-    const shippedOrders = await Order.count({ where: { ...whereSeller, status: 'shipped' } });
-    const ofdOrders = await Order.count({ where: { ...whereSeller, status: 'out_for_delivery' } });
-    const deliveredOrders = await Order.count({ where: { ...whereSeller, status: 'delivered' } });
-    const cancelledOrders = await Order.count({ where: { ...whereSeller, status: 'cancelled' } });
-    const totalSalesRow = await Order.findAll({
-      where: { sellerId: req.user.id, status: { [Op.ne]: 'cancelled' } },
-      attributes: [[sequelize.fn('SUM', sequelize.col('totalAmount')), 'total']]
-    });
-    const totalSales = parseFloat(totalSalesRow[0]?.get('total') || 0);
-    
-    res.json({
-      stats: {
-        totalOrders,
-        pendingOrders,
-        orderedOrders,
-        shippedOrders,
-        ofdOrders,
-        deliveredOrders,
-        cancelledOrders,
-        totalSales
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// Update order status (seller only)
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['ordered', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'];
-    
-    if (!status) {
-      return res.status(400).json({ message: 'Status is required' });
+    const orderId = req.params.id;
+
+    if (!['Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status.' });
     }
-    
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status. Must be one of: ' + validStatuses.join(', ') });
-    }
-    
-    const order = await Order.findOne({ where: { id: req.params.id, sellerId: req.user.id }, include: [
-      { model: User, as: 'retailer', attributes: ['phone','businessName'] },
-      { model: Product }
-    ] });
+
+    const { data: order, error: fetchError } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        product:products(id, name, description, image_url, price),
+        seller:users!orders_seller_id_fkey(id, username, business_name, address, phone_number, email),
+        retailer:users!orders_retailer_id_fkey(id, username, business_name, address, phone_number, email)
+      `)
+      .eq('id', orderId)
+      .eq('seller_id', req.user.id)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
     if (!order) {
-      return res.status(404).json({ message: 'Order not found or not authorized' });
-    }
-    
-    // Prevent status changes for cancelled or delivered orders
-    if (order.status === 'cancelled' || order.status === 'delivered') {
-      return res.status(400).json({ message: `Cannot change status of ${order.status} order` });
-    }
-    
-    order.status = status;
-    await order.save();
-    await OrderTimeline.create({ orderId: order.id, status, message: `Order ${status.replace(/_/g,' ')}` });
-
-    // Invoice generation on 'ordered'
-    if (status === 'ordered') {
-      const invoiceUrl = generateInvoice(order);
-      order.invoiceUrl = invoiceUrl; // not persisted unless column added; return in payload
+      return res.status(404).json({ message: 'Order not found or not authorized.' });
     }
 
-    // Notify retailer via SMS on important stages
-    if (['ordered','shipped','out_for_delivery','delivered'].includes(status)) {
-      await sendSMS(order.retailer?.phone, `Your order ${order.id} is now ${status.replace(/_/g,' ')}`);
+    const updateData = { status };
+
+    if (status === 'Shipped' && !order.invoice_number) {
+      const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+      const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
+      updateData.invoice_number = invoiceNumber;
+      updateData.shipped_date = new Date().toISOString();
+
+      const invoicesDir = ensureInvoicesDir();
+      const invoicePath = path.join(invoicesDir, `${invoiceNumber}.pdf`);
+
+      const invoiceData = {
+        invoice_number: invoiceNumber,
+        order_number: order.order_number,
+        order_date: order.order_date,
+        quantity: order.quantity,
+        unit_price: order.unit_price,
+        total_amount: order.total_amount,
+        product: order.product,
+        seller: order.seller,
+        retailer: order.retailer
+      };
+
+      await generateInvoice(invoiceData, invoicePath);
+      updateData.invoice_path = `/invoices/${invoiceNumber}.pdf`;
+
+      if (order.retailer.phone_number) {
+        await sendSMS(
+          order.retailer.phone_number,
+          `Your order ${order.order_number} for ${order.product.name} has been shipped! Your invoice is now available for download. Thank you for your purchase.`
+        );
+      }
+    } else if (status === 'Out for Delivery') {
+      if (order.retailer.phone_number) {
+        await sendSMS(
+          order.retailer.phone_number,
+          `Great news! Your order ${order.order_number} is out for delivery and will arrive soon.`
+        );
+      }
+    } else if (status === 'Delivered') {
+      updateData.delivered_date = new Date().toISOString();
     }
 
-    const populatedOrder = await Order.findByPk(order.id, {
-      include: [
-        { model: Product },
-        { model: User, as: 'retailer', attributes: ['businessName','phone','whatsapp','email','pincode'] },
-        { model: OrderTimeline }
-      ]
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from('orders')
+      .update(updateData)
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      message: `Order status updated to ${status}`,
+      order: updatedOrder
     });
-
-    res.json({ success: true, message: `Order status updated to ${status}`, order: populatedOrder });
   } catch (err) {
-    if (err.name === 'ValidationError') {
-      const errors = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ message: errors.join(', ') });
+    console.error('Update order status error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.downloadInvoice = async (req, res) => {
+  try {
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select('invoice_path, invoice_number, retailer_id, seller_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found.' });
     }
+
+    if (order.retailer_id !== req.user.id && order.seller_id !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized.' });
+    }
+
+    if (!order.invoice_path) {
+      return res.status(404).json({ message: 'Invoice not yet generated.' });
+    }
+
+    const invoicePath = path.join(__dirname, '..', order.invoice_path);
+
+    if (!fs.existsSync(invoicePath)) {
+      return res.status(404).json({ message: 'Invoice file not found.' });
+    }
+
+    res.download(invoicePath, `${order.invoice_number}.pdf`);
+  } catch (err) {
+    console.error('Download invoice error:', err);
     res.status(500).json({ message: err.message });
   }
 };

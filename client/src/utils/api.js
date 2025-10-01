@@ -88,18 +88,29 @@ export const api = {
 
   getRetailerOrders: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    return apiCall(`/api/retailer/orders${queryString ? `?${queryString}` : ''}`);
+    return apiCall(`/api/orders/retailer${queryString ? `?${queryString}` : ''}`);
   },
 
   getSellerOrders: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    return apiCall(`/api/seller/orders${queryString ? `?${queryString}` : ''}`);
+    return apiCall(`/api/orders/seller${queryString ? `?${queryString}` : ''}`);
   },
 
-  updateOrderStatus: (id, status) => apiCall(`/api/seller/orders/${id}/status`, {
+  getOrderById: (id) => apiCall(`/api/orders/${id}`),
+
+  updateOrderStatus: (id, status) => apiCall(`/api/orders/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status })
   }),
+
+  downloadInvoice: (id) => {
+    const token = localStorage.getItem('token');
+    return fetch(`${API_BASE_URL}/api/orders/${id}/invoice`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+  },
 
   // Stats
   getRetailerStats: () => apiCall('/api/retailer/stats'),

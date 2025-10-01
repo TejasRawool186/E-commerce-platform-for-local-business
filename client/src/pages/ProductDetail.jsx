@@ -3,16 +3,14 @@ import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
-import { 
-  Package, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  MessageCircle,
+import {
+  Package,
+  MapPin,
+  Phone,
+  Mail,
   ShoppingCart,
   Loader2,
-  ArrowLeft,
-  Star
+  ArrowLeft
 } from 'lucide-react';
 
 const ProductDetail = () => {
@@ -21,14 +19,10 @@ const ProductDetail = () => {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(1);
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [orderNotes, setOrderNotes] = useState('');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['product', id],
-    queryFn: async () => {
-      return api.getProduct(id);
-    }
+    queryFn: async () => api.getProduct(id)
   });
 
   const placeOrderMutation = useMutation({
@@ -36,7 +30,7 @@ const ProductDetail = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['retailer-orders']);
       alert('Order placed successfully!');
-      setLocation('/retailer');
+      setLocation('/retailer/orders');
     },
     onError: (error) => {
       alert(`Failed to place order: ${error.message}`);
@@ -44,14 +38,7 @@ const ProductDetail = () => {
   });
 
   const product = data?.product;
-  const seller = product?.seller || product?.sellerId; // backward compatibility
-
-  const handleQuantityChange = (e) => {
-    const value = parseInt(e.target.value);
-    if (value >= product.moq) {
-      setQuantity(value);
-    }
-  };
+  const seller = product?.seller;
 
   const handlePlaceOrder = () => {
     if (!isAuthenticated) {
@@ -64,17 +51,19 @@ const ProductDetail = () => {
       return;
     }
 
-    const userId = user.id || user._id;
-    const sellerId = seller?.id || seller?._id;
-    if (userId === sellerId) {
+    if (user.id === seller?.id) {
       alert('Cannot order your own product');
       return;
     }
 
+    if (quantity > product.stock_quantity) {
+      alert('Insufficient stock available');
+      return;
+    }
+
     placeOrderMutation.mutate({
-      productId: product.id || product._id,
-      quantity: quantity,
-      notes: orderNotes
+      productId: product.id,
+      quantity: parseInt(quantity)
     });
   };
 
@@ -83,7 +72,7 @@ const ProductDetail = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -93,16 +82,11 @@ const ProductDetail = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text-primary mb-2">
-            Product not found
-          </h3>
-          <p className="text-text-secondary mb-4">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Product not found</h3>
+          <p className="text-gray-600 mb-4">
             The product you're looking for doesn't exist or has been removed.
           </p>
-          <button
-            onClick={() => setLocation('/products')}
-            className="btn-primary"
-          >
+          <button onClick={() => setLocation('/products')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
             Browse Products
           </button>
         </div>
@@ -111,24 +95,22 @@ const ProductDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
         <button
           onClick={() => setLocation('/products')}
-          className="flex items-center text-text-secondary hover:text-text-primary mb-6"
+          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Products
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
           <div>
-            <div className="aspect-square bg-gray-100 rounded-lg mb-4 flex items-center justify-center">
-              {product.images && product.images.length > 0 ? (
+            <div className="aspect-square bg-white rounded-lg shadow-md flex items-center justify-center">
+              {product.image_url ? (
                 <img
-                  src={product.images[selectedImage]}
+                  src={product.image_url}
                   alt={product.name}
                   className="w-full h-full object-cover rounded-lg"
                 />
@@ -136,113 +118,64 @@ const ProductDetail = () => {
                 <Package className="w-32 h-32 text-gray-400" />
               )}
             </div>
-
-            {/* Image Thumbnails */}
-            {product.images && product.images.length > 1 && (
-              <div className="grid grid-cols-5 gap-2">
-                {product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`aspect-square bg-gray-100 rounded-lg overflow-hidden ${
-                      selectedImage === index ? 'ring-2 ring-primary-500' : ''
-                    }`}
-                  >
-                    <img
-                      src={image}
-                      alt={`${product.name} ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Product Details */}
           <div>
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-text-primary mb-4">
-                {product.name}
-              </h1>
-              
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
+
               <div className="flex items-center space-x-4 mb-4">
-                <span className="text-4xl font-bold text-primary-500">
-                  ₹{product.price}
-                </span>
-                <span className="text-text-secondary">
-                  per {product.unit}
+                <span className="text-4xl font-bold text-blue-600">
+                  ${parseFloat(product.price).toFixed(2)}
                 </span>
               </div>
 
-              <div className="flex items-center space-x-6 text-sm text-text-secondary mb-6">
-                <span>MOQ: {product.moq} {product.unit}</span>
-                {product.brand && <span>Brand: {product.brand}</span>}
-                {product.leadTime && <span>Lead Time: {product.leadTime} days</span>}
+              <div className="flex items-center space-x-6 text-sm text-gray-600 mb-6">
+                <span>Stock: {product.stock_quantity} units</span>
               </div>
 
               <div className="mb-6">
-                <h3 className="font-semibold text-text-primary mb-2">Description</h3>
-                <p className="text-text-secondary leading-relaxed">
-                  {product.description}
-                </p>
-              </div>
-
-              <div className="mb-6">
-                <h3 className="font-semibold text-text-primary mb-2">Category</h3>
-                <span className="inline-block bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm">
-                  {product.category}
-                </span>
+                <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
+                <p className="text-gray-600 leading-relaxed">{product.description}</p>
               </div>
             </div>
 
-            {/* Order Section (for retailers) */}
-            {isAuthenticated && user.role === 'retailer' && user._id !== seller._id && (
-              <div className="card p-6 mb-6">
-                <h3 className="font-semibold text-text-primary mb-4">Place Order</h3>
-                
+            {isAuthenticated && user.role === 'retailer' && user.id !== seller?.id && (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h3 className="font-semibold text-gray-900 mb-4">Place Order</h3>
+
                 <div className="space-y-4">
                   <div>
-                    <label className="form-label">Quantity</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
                     <input
                       type="number"
                       value={quantity}
-                      onChange={handleQuantityChange}
-                      min={product.moq}
-                      className="input-field"
+                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                      min={1}
+                      max={product.stock_quantity}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
-                    <p className="text-sm text-text-secondary mt-1">
-                      Minimum order quantity: {product.moq} {product.unit}
+                    <p className="text-sm text-gray-500 mt-1">
+                      Available stock: {product.stock_quantity} units
                     </p>
-                  </div>
-
-                  <div>
-                    <label className="form-label">Order Notes (Optional)</label>
-                    <textarea
-                      value={orderNotes}
-                      onChange={(e) => setOrderNotes(e.target.value)}
-                      rows={3}
-                      className="input-field"
-                      placeholder="Any special requirements or notes..."
-                    />
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-text-secondary">Total Amount:</span>
-                      <span className="text-2xl font-bold text-primary-500">
-                        ₹{totalAmount.toLocaleString()}
+                      <span className="text-gray-600">Total Amount:</span>
+                      <span className="text-2xl font-bold text-blue-600">
+                        ${totalAmount.toFixed(2)}
                       </span>
                     </div>
-                    <p className="text-sm text-text-secondary">
-                      {quantity} {product.unit} × ₹{product.price}
+                    <p className="text-sm text-gray-500">
+                      {quantity} units × ${parseFloat(product.price).toFixed(2)}
                     </p>
                   </div>
 
                   <button
                     onClick={handlePlaceOrder}
-                    disabled={placeOrderMutation.isPending || quantity < product.moq}
-                    className="btn-primary w-full flex items-center justify-center"
+                    disabled={placeOrderMutation.isPending || quantity < 1 || quantity > product.stock_quantity}
+                    className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {placeOrderMutation.isPending ? (
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -255,53 +188,43 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Seller Information */}
-            <div className="card p-6">
-              <h3 className="font-semibold text-text-primary mb-4">Seller Information</h3>
-              
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Seller Information</h3>
+
               <div className="space-y-3">
                 <div>
-                  <h4 className="font-medium text-text-primary">{seller.businessName}</h4>
-                  {seller.businessType && (
-                    <p className="text-sm text-text-secondary">{seller.businessType}</p>
-                  )}
+                  <h4 className="font-medium text-gray-900">
+                    {seller?.business_name || seller?.username}
+                  </h4>
                 </div>
 
-                <div className="flex items-center text-text-secondary">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  <span>{seller.address}, {seller.pincode}</span>
-                </div>
+                {seller?.address && (
+                  <div className="flex items-center text-gray-600">
+                    <MapPin className="w-4 h-4 mr-2" />
+                    <span>{seller.address}</span>
+                  </div>
+                )}
 
                 <div className="flex space-x-4">
-                  {seller.phone && (
+                  {seller?.phone_number && (
                     <a
-                      href={`tel:${seller.phone}`}
-                      className="flex items-center text-primary-500 hover:text-primary-700"
+                      href={`tel:${seller.phone_number}`}
+                      className="flex items-center text-blue-600 hover:text-blue-700"
                     >
                       <Phone className="w-4 h-4 mr-2" />
                       Call
                     </a>
                   )}
-                  
-                  {seller.whatsapp && (
+
+                  {seller?.email && (
                     <a
-                      href={`https://wa.me/${seller.whatsapp}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center text-green-500 hover:text-green-700"
+                      href={`mailto:${seller.email}`}
+                      className="flex items-center text-blue-600 hover:text-blue-700"
                     >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      WhatsApp
+                      <Mail className="w-4 h-4 mr-2" />
+                      Email
                     </a>
                   )}
-                  
-                  <a
-                    href={`mailto:${seller.email}`}
-                    className="flex items-center text-primary-500 hover:text-primary-700"
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Email
-                  </a>
                 </div>
               </div>
             </div>

@@ -1,65 +1,137 @@
-// Sequelize models
-const { User } = require('../sequelize');
+const { supabase } = require('../config/supabase');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// Register User
 exports.registerUser = async (req, res) => {
   try {
-    const { email, password, role, firstName, lastName, businessName, businessType, address, pincode, phone, whatsapp } = req.body;
-    if (!email || !password || !role || !firstName || !lastName || !address || !pincode) {
+    const { email, password, role, username, businessName, address, phoneNumber } = req.body;
+
+    if (!email || !password || !role || !username) {
       return res.status(400).json({ message: 'Please fill all required fields.' });
     }
-    const userExists = await User.findOne({ where: { email } });
-    if (userExists) return res.status(400).json({ message: 'User already exists.' });
+
+    if (!['retailer', 'seller', 'admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role.' });
+    }
+
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .or(`email.eq.${email},username.eq.${username}`)
+      .maybeSingle();
+
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email or username already exists.' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      email,
-      password: hashedPassword,
-      role,
-      firstName,
-      lastName,
-      businessName,
-      businessType: role === 'seller' ? businessType : null,
-      address,
-      pincode,
-      phone,
-      whatsapp
-    });
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .insert({
+        email,
+        password_hash: hashedPassword,
+        role,
+        username,
+        business_name: businessName || null,
+        address: address || null,
+        phone_number: phoneNumber || null
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.status(201).json({
-      user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        username: user.username,
+        businessName: user.business_name
+      },
       token
     });
   } catch (err) {
+    console.error('Registration error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// Login User
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials.' });
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials.' });
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Please provide email and password.' });
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error || !user) {
+      return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.json({
-      user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        username: user.username,
+        businessName: user.business_name
+      },
       token
     });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// Get Current User
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
-    res.json(user);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, role, username, business_name, address, phone_number, created_at')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      username: user.username,
+      businessName: user.business_name,
+      address: user.address,
+      phoneNumber: user.phone_number,
+      createdAt: user.created_at
+    });
   } catch (err) {
+    console.error('Get user error:', err);
     res.status(500).json({ message: err.message });
   }
 };
