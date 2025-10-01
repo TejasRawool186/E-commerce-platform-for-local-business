@@ -1,4 +1,5 @@
-const { supabase } = require('../config/supabase');
+const { Op } = require('sequelize');
+const { Product, User } = require('../sequelize');
 
 exports.createProduct = async (req, res) => {
   try {
@@ -12,22 +13,20 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: 'Price must be positive.' });
     }
 
-    const { data: product, error } = await supabase
-      .from('products')
-      .insert({
-        seller_id: req.user.id,
-        name: name.trim(),
-        description: description.trim(),
-        price: parseFloat(price),
-        image_url: imageUrl || null,
-        stock_quantity: stockQuantity || 0
-      })
-      .select()
-      .single();
+    const product = await Product.create({
+      sellerId: req.user.id,
+      name: name.trim(),
+      description: description.trim(),
+      price: parseFloat(price),
+      images: imageUrl ? [imageUrl] : [],
+      moq: 1,
+      unit: 'pieces',
+      brand: null,
+      leadTime: null,
+      isActive: true
+    });
 
-    if (error) throw error;
-
-    res.status(201).json({ success: true, product });
+    res.status(201).json({ success: true, product: product.get({ plain: true }) });
   } catch (err) {
     console.error('Create product error:', err);
     res.status(500).json({ message: err.message });
@@ -40,33 +39,25 @@ exports.getProducts = async (req, res) => {
     const limit = parseInt(req.query.limit) || 12;
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from('products')
-      .select('*, seller:users!products_seller_id_fkey(username, business_name, address, phone_number, email)', { count: 'exact' })
-      .gte('stock_quantity', 0)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (req.query.search) {
-      query = query.ilike('name', `%${req.query.search}%`);
+    const where = {};
+    if (req.query.search) where.name = { [Op.like]: `%${req.query.search}%` };
+    if (req.query.minPrice || req.query.maxPrice) {
+      where.price = {};
+      if (req.query.minPrice) where.price[Op.gte] = parseFloat(req.query.minPrice);
+      if (req.query.maxPrice) where.price[Op.lte] = parseFloat(req.query.maxPrice);
     }
 
-    if (req.query.minPrice) {
-      query = query.gte('price', parseFloat(req.query.minPrice));
-    }
-
-    if (req.query.maxPrice) {
-      query = query.lte('price', parseFloat(req.query.maxPrice));
-    }
-
-    const { data: products, error, count } = await query;
-
-    if (error) throw error;
+    const { rows, count } = await Product.findAndCountAll({
+      where,
+      include: [{ model: User, as: 'seller', attributes: ['firstName', 'businessName', 'address', 'phone', 'email'] }],
+      order: [['createdAt', 'DESC']],
+      offset,
+      limit
+    });
 
     const totalPages = Math.ceil(count / limit);
-
     res.json({
-      products,
+      products: rows,
       pagination: {
         currentPage: page,
         totalPages,
@@ -84,13 +75,9 @@ exports.getProducts = async (req, res) => {
 
 exports.getProductById = async (req, res) => {
   try {
-    const { data: product, error } = await supabase
-      .from('products')
-      .select('*, seller:users!products_seller_id_fkey(username, business_name, address, phone_number, email)')
-      .eq('id', req.params.id)
-      .maybeSingle();
-
-    if (error) throw error;
+    const product = await Product.findByPk(req.params.id, {
+      include: [{ model: User, as: 'seller', attributes: ['firstName', 'businessName', 'address', 'phone', 'email'] }]
+    });
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
@@ -109,19 +96,15 @@ exports.getSellerProducts = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    const { data: products, error, count } = await supabase
-      .from('products')
-      .select('*', { count: 'exact' })
-      .eq('seller_id', req.user.id)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) throw error;
-
+    const { rows, count } = await Product.findAndCountAll({
+      where: { sellerId: req.user.id },
+      order: [['createdAt', 'DESC']],
+      offset,
+      limit
+    });
     const totalPages = Math.ceil(count / limit);
-
     res.json({
-      products,
+      products: rows,
       pagination: {
         currentPage: page,
         totalPages,
@@ -149,26 +132,15 @@ exports.updateProduct = async (req, res) => {
       return res.status(400).json({ message: 'Price must be positive.' });
     }
 
-    const { data: product, error } = await supabase
-      .from('products')
-      .update({
-        name: name.trim(),
-        description: description.trim(),
-        price: parseFloat(price),
-        image_url: imageUrl || null,
-        stock_quantity: stockQuantity !== undefined ? stockQuantity : 0
-      })
-      .eq('id', req.params.id)
-      .eq('seller_id', req.user.id)
-      .select()
-      .maybeSingle();
-
-    if (error) throw error;
-
+    const product = await Product.findOne({ where: { id: req.params.id, sellerId: req.user.id } });
     if (!product) {
       return res.status(404).json({ message: 'Product not found or not authorized' });
     }
-
+    product.name = name.trim();
+    product.description = description.trim();
+    product.price = parseFloat(price);
+    if (imageUrl) product.images = [imageUrl];
+    await product.save();
     res.json({ success: true, product });
   } catch (err) {
     console.error('Update product error:', err);
@@ -178,17 +150,24 @@ exports.updateProduct = async (req, res) => {
 
 exports.deleteProduct = async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', req.params.id)
-      .eq('seller_id', req.user.id);
-
-    if (error) throw error;
-
+    const deleted = await Product.destroy({ where: { id: req.params.id, sellerId: req.user.id } });
+    if (!deleted) return res.status(404).json({ message: 'Product not found or not authorized' });
     res.json({ success: true, message: 'Product deleted successfully' });
   } catch (err) {
     console.error('Delete product error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.toggleProductStatus = async (req, res) => {
+  try {
+    const product = await Product.findOne({ where: { id: req.params.id, sellerId: req.user.id } });
+    if (!product) return res.status(404).json({ message: 'Product not found or not authorized' });
+    product.isActive = !product.isActive;
+    await product.save();
+    res.json({ success: true, product });
+  } catch (err) {
+    console.error('Toggle product status error:', err);
     res.status(500).json({ message: err.message });
   }
 };

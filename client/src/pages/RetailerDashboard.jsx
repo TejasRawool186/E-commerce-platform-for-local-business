@@ -27,13 +27,12 @@ const RetailerDashboard = () => {
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'pending': return 'status-pending';
-      case 'ordered': return 'status-processing';
-      case 'shipped': return 'status-shipped';
-      case 'out_for_delivery': return 'status-processing';
-      case 'delivered': return 'status-delivered';
-      case 'cancelled': return 'status-cancelled';
-      default: return 'status-pending';
+      case 'Ordered': return 'status-processing';
+      case 'Shipped': return 'status-shipped';
+      case 'Out for Delivery': return 'status-processing';
+      case 'Delivered': return 'status-delivered';
+      case 'Cancelled': return 'status-cancelled';
+      default: return 'status-processing';
     }
   };
 
@@ -202,7 +201,7 @@ const RetailerDashboard = () => {
                       <td className="py-3 px-4 text-sm font-medium">₹{order.totalAmount.toLocaleString()}</td>
                       <td className="py-3 px-4">
                         <span className={getStatusClass(order.status)}>
-                          {order.status.replaceAll('_',' ').replace(/\b\w/g, c => c.toUpperCase())}
+                          {order.status}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-sm text-text-secondary">

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { supabase } = require('../config/supabase');
+const { User } = require('../sequelize');
 
 exports.protect = async (req, res, next) => {
   let token;
@@ -18,17 +18,15 @@ exports.protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, role, username, business_name, address, phone_number')
-      .eq('id', decoded.id)
-      .maybeSingle();
+    const user = await User.findByPk(decoded.id, {
+      attributes: ['id', 'email', 'role', 'firstName', 'lastName', 'businessName', 'address', 'phone', 'whatsapp']
+    });
 
-    if (error || !user) {
+    if (!user) {
       return res.status(401).json({ message: 'Not authorized, user not found' });
     }
 
-    req.user = user;
+    req.user = user.get({ plain: true });
     next();
   } catch (err) {
     console.error('Auth middleware error:', err);

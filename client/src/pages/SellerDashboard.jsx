@@ -77,24 +77,22 @@ const SellerDashboard = () => {
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'pending': return 'status-pending';
-      case 'ordered': return 'status-processing';
-      case 'shipped': return 'status-shipped';
-      case 'out_for_delivery': return 'status-processing';
-      case 'delivered': return 'status-delivered';
-      case 'cancelled': return 'status-cancelled';
-      default: return 'status-pending';
+      case 'Ordered': return 'status-processing';
+      case 'Shipped': return 'status-shipped';
+      case 'Out for Delivery': return 'status-processing';
+      case 'Delivered': return 'status-delivered';
+      case 'Cancelled': return 'status-cancelled';
+      default: return 'status-processing';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'pending': return <Clock className="w-4 h-4" />;
-      case 'ordered': return <Clock className="w-4 h-4" />;
-      case 'shipped': return <Truck className="w-4 h-4" />;
-      case 'out_for_delivery': return <Truck className="w-4 h-4" />;
-      case 'delivered': return <CheckCircle className="w-4 h-4" />;
-      case 'cancelled': return <XCircle className="w-4 h-4" />;
+      case 'Ordered': return <Clock className="w-4 h-4" />;
+      case 'Shipped': return <Truck className="w-4 h-4" />;
+      case 'Out for Delivery': return <Truck className="w-4 h-4" />;
+      case 'Delivered': return <CheckCircle className="w-4 h-4" />;
+      case 'Cancelled': return <XCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
@@ -352,7 +350,7 @@ const SellerDashboard = () => {
                       <td className="py-3 px-4 text-sm font-medium">₹{order.totalAmount.toLocaleString()}</td>
                       <td className="py-3 px-4">
                         <span className={getStatusClass(order.status)}>
-                          {order.status.replaceAll('_',' ').replace(/\b\w/g, c => c.toUpperCase())}
+                          {order.status}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-sm text-text-secondary">
@@ -363,45 +361,36 @@ const SellerDashboard = () => {
                           <button className="text-primary-500 hover:text-primary-700" title="View Details">
                             <Eye className="w-4 h-4" />
                           </button>
-                          {order.status === 'pending' && (
+                          {order.status === 'Ordered' && (
                             <button 
-                              onClick={() => handleStatusUpdate(order.id || order._id, 'ordered')}
+                              onClick={() => handleStatusUpdate(order.id || order._id, 'Shipped')}
                               className="text-blue-500 hover:text-blue-700"
                               title="Mark as Ordered (Generate Invoice)"
                             >
                               <Clock className="w-4 h-4" />
                             </button>
                           )}
-                          {order.status === 'ordered' && (
+                          {order.status === 'Shipped' && (
                             <button 
-                              onClick={() => handleStatusUpdate(order.id || order._id, 'shipped')}
+                              onClick={() => handleStatusUpdate(order.id || order._id, 'Out for Delivery')}
                               className="text-purple-500 hover:text-purple-700"
                               title="Mark as Shipped"
                             >
                               <Truck className="w-4 h-4" />
                             </button>
                           )}
-                          {order.status === 'shipped' && (
+                          {order.status === 'Out for Delivery' && (
                             <button 
-                              onClick={() => handleStatusUpdate(order.id || order._id, 'out_for_delivery')}
+                              onClick={() => handleStatusUpdate(order.id || order._id, 'Delivered')}
                               className="text-indigo-500 hover:text-indigo-700"
                               title="Mark as Out for Delivery"
                             >
                               <Truck className="w-4 h-4" />
                             </button>
                           )}
-                          {order.status === 'out_for_delivery' && (
+                          {(order.status === 'Ordered') && (
                             <button 
-                              onClick={() => handleStatusUpdate(order.id || order._id, 'delivered')}
-                              className="text-green-500 hover:text-green-700"
-                              title="Mark as Delivered"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                          {(order.status === 'pending' || order.status === 'processing') && (
-                            <button 
-                              onClick={() => handleStatusUpdate(order.id || order._id, 'cancelled')}
+                              onClick={() => handleStatusUpdate(order.id || order._id, 'Cancelled')}
                               className="text-red-500 hover:text-red-700"
                               title="Cancel Order"
                             >

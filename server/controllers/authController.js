@@ -1,6 +1,6 @@
-const { supabase } = require('../config/supabase');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { User } = require('../sequelize');
 
 exports.registerUser = async (req, res) => {
   try {
@@ -14,33 +14,23 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role.' });
     }
 
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .or(`email.eq.${email},username.eq.${username}`)
-      .maybeSingle();
-
+    const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email or username already exists.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .insert({
-        email,
-        password_hash: hashedPassword,
-        role,
-        username,
-        business_name: businessName || null,
-        address: address || null,
-        phone_number: phoneNumber || null
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const user = await User.create({
+      email,
+      password: hashedPassword,
+      role,
+      firstName: username,
+      lastName: '',
+      businessName: businessName || null,
+      address: address || null,
+      phone: phoneNumber || null
+    });
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
@@ -53,8 +43,8 @@ exports.registerUser = async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
-        username: user.username,
-        businessName: user.business_name
+        username: user.firstName,
+        businessName: user.businessName
       },
       token
     });
@@ -72,17 +62,12 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Please provide email and password.' });
     }
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (error || !user) {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials.' });
@@ -99,8 +84,8 @@ exports.loginUser = async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
-        username: user.username,
-        businessName: user.business_name
+        username: user.firstName,
+        businessName: user.businessName
       },
       token
     });
@@ -112,23 +97,17 @@ exports.loginUser = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, role, username, business_name, address, phone_number, created_at')
-      .eq('id', req.user.id)
-      .single();
-
-    if (error) throw error;
-
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({
       id: user.id,
       email: user.email,
       role: user.role,
-      username: user.username,
-      businessName: user.business_name,
+      username: user.firstName,
+      businessName: user.businessName,
       address: user.address,
-      phoneNumber: user.phone_number,
-      createdAt: user.created_at
+      phoneNumber: user.phone,
+      createdAt: user.createdAt
     });
   } catch (err) {
     console.error('Get user error:', err);

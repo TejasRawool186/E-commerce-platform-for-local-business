@@ -32,7 +32,9 @@ const Product = sequelize.define('Product', {
     allowNull: false 
   },
   price: { type: DataTypes.DECIMAL(10,2), allowNull: false },
-  moq: { type: DataTypes.INTEGER, allowNull: false },
+  stockQuantity: { type: DataTypes.INTEGER, defaultValue: 0 },
+  imageUrl: { type: DataTypes.STRING },
+  moq: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
   unit: { type: DataTypes.STRING, defaultValue: 'pieces' },
   brand: { type: DataTypes.STRING },
   leadTime: { type: DataTypes.INTEGER },
@@ -43,22 +45,27 @@ const Product = sequelize.define('Product', {
 // Order model with statuses
 const Order = sequelize.define('Order', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  orderNumber: { type: DataTypes.STRING, unique: true },
   quantity: { type: DataTypes.INTEGER, allowNull: false },
   unitPrice: { type: DataTypes.DECIMAL(10,2), allowNull: false },
   totalAmount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
   status: { 
-    type: DataTypes.ENUM('pending', 'ordered', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'),
-    defaultValue: 'pending' 
+    type: DataTypes.ENUM('Ordered', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'),
+    defaultValue: 'Ordered' 
   },
   orderDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
-  notes: { type: DataTypes.TEXT }
+  notes: { type: DataTypes.TEXT },
+  invoiceNumber: { type: DataTypes.STRING },
+  invoicePath: { type: DataTypes.STRING },
+  shippedDate: { type: DataTypes.DATE },
+  deliveredDate: { type: DataTypes.DATE }
 });
 
 // OrderTimeline model to track events
 const OrderTimeline = sequelize.define('OrderTimeline', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   status: { 
-    type: DataTypes.ENUM('pending', 'ordered', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'),
+    type: DataTypes.ENUM('Ordered', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'),
     allowNull: false
   },
   message: { type: DataTypes.STRING },
