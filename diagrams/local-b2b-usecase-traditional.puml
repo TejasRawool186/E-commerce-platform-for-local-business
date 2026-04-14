@@ -1,0 +1,110 @@
+@startuml Local B2B Use Case Diagram
+
+!theme plain
+skinparam backgroundColor #F8F9FA
+skinparam actor {
+    BackgroundColor #E3F2FD
+    BorderColor #1976D2
+}
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #424242
+}
+skinparam package {
+    BackgroundColor #F5F5F5
+    BorderColor #757575
+}
+
+title Use Case Diagram of Local B2B Platform
+
+' Actors
+actor "Web Customer\n(Guest)" as Guest
+actor "Registered\nRetailer" as Retailer
+actor "Seller" as Seller
+actor "Admin" as Admin
+
+' External Services
+actor "Payment\nService" as PaymentSvc
+actor "SMS\nService" as SMSSvc
+actor "Email\nService" as EmailSvc
+
+' System boundary
+package "<<Subsystem>>\nLocal B2B Platform" {
+    
+    ' Authentication use cases
+    usecase "Register Account" as UC1
+    usecase "Login" as UC2
+    usecase "Update Profile" as UC3
+    
+    ' Product browsing use cases
+    usecase "Browse Products" as UC4
+    usecase "Search Products" as UC5
+    usecase "View Product Details" as UC6
+    
+    ' Shopping use cases
+    usecase "Add to Cart" as UC7
+    usecase "Place Order" as UC8
+    usecase "Process Payment" as UC9
+    
+    ' Seller use cases
+    usecase "List Products" as UC10
+    usecase "Manage Orders" as UC11
+    usecase "View Analytics" as UC12
+    usecase "Generate Reports" as UC13
+    
+    ' Admin use cases
+    usecase "Manage Users" as UC14
+    usecase "Platform Statistics" as UC15
+    
+    ' Communication use cases
+    usecase "Contact Supplier" as UC16
+    usecase "Send Notifications" as UC17
+}
+
+' Guest relationships
+Guest --> UC1
+Guest --> UC2
+Guest --> UC4
+Guest --> UC5
+Guest --> UC6
+
+' Retailer relationships
+Retailer --> UC2
+Retailer --> UC3
+Retailer --> UC4
+Retailer --> UC5
+Retailer --> UC6
+Retailer --> UC7
+Retailer --> UC8
+Retailer --> UC9
+Retailer --> UC16
+
+' Seller relationships
+Seller --> UC2
+Seller --> UC3
+Seller --> UC10
+Seller --> UC11
+Seller --> UC12
+Seller --> UC13
+
+' Admin relationships
+Admin --> UC2
+Admin --> UC14
+Admin --> UC15
+
+' External service relationships
+UC9 --> PaymentSvc
+UC17 --> SMSSvc
+UC17 --> EmailSvc
+
+' Include relationships
+UC8 ..> UC9 : <<include>>
+UC7 ..> UC8 : <<include>>
+UC11 ..> UC17 : <<include>>
+UC1 ..> UC17 : <<include>>
+
+' Extend relationships
+UC6 ..> UC7 : <<extend>>
+UC5 ..> UC4 : <<extend>>
+
+@enduml

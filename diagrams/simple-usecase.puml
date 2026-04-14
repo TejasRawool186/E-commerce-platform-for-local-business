@@ -1,0 +1,73 @@
+@startuml Simple Local B2B Use Case Diagram
+
+!theme plain
+skinparam backgroundColor #F8F9FA
+skinparam actor {
+    BackgroundColor #E3F2FD
+    BorderColor #1976D2
+}
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #424242
+}
+
+title Simple Use Case Diagram - Local B2B Platform
+
+' Main Actors
+actor "Guest" as Guest
+actor "Retailer" as Retailer
+actor "Seller" as Seller
+actor "Admin" as Admin
+
+' External Service
+actor "Payment\nService" as Payment
+
+' System boundary
+package "Local B2B Platform" {
+    
+    ' Core use cases only
+    usecase "Register" as UC1
+    usecase "Login" as UC2
+    usecase "Browse Products" as UC3
+    usecase "View Product" as UC4
+    usecase "Add to Cart" as UC5
+    usecase "Place Order" as UC6
+    usecase "Make Payment" as UC7
+    usecase "List Product" as UC8
+    usecase "Manage Orders" as UC9
+    usecase "View Analytics" as UC10
+    usecase "Manage Users" as UC11
+}
+
+' Guest connections
+Guest --> UC1
+Guest --> UC2
+Guest --> UC3
+Guest --> UC4
+
+' Retailer connections  
+Retailer --> UC2
+Retailer --> UC3
+Retailer --> UC4
+Retailer --> UC5
+Retailer --> UC6
+Retailer --> UC7
+
+' Seller connections
+Seller --> UC2
+Seller --> UC8
+Seller --> UC9
+Seller --> UC10
+
+' Admin connections
+Admin --> UC2
+Admin --> UC11
+
+' External service
+UC7 --> Payment
+
+' Key relationships
+UC6 ..> UC7 : <<include>>
+UC4 ..> UC5 : <<extend>>
+
+@enduml

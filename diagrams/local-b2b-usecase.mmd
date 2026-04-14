@@ -1,0 +1,128 @@
+graph TB
+    %% Actors (outside the system)
+    Guest[👤 Guest/Visitor]
+    Seller[👤 Seller]
+    Retailer[👤 Retailer] 
+    Admin[👤 Admin]
+    PaymentService[🏦 Payment Service]
+    SMSService[📱 SMS Service]
+    EmailService[📧 Email Service]
+    
+    %% System boundary
+    subgraph "<<Subsystem>> Local B2B Platform"
+        %% Authentication subsystem
+        subgraph "<<Service>> Authentication"
+            UC1[Register Account]
+            UC2[Login]
+            UC3[Logout]
+            UC4[Update Profile]
+        end
+        
+        %% Product Management subsystem
+        subgraph "<<Service>> Product Management"
+            UC5[Browse Products]
+            UC6[Search Products]
+            UC7[View Product Details]
+            UC8[List New Product]
+            UC9[Edit Product]
+            UC10[Delete Product]
+            UC11[Manage Categories]
+        end
+        
+        %% Order Management subsystem
+        subgraph "<<Service>> Order Management"
+            UC12[Add to Cart]
+            UC13[View Cart]
+            UC14[Place Order]
+            UC15[Process Payment]
+            UC16[Track Order]
+            UC17[Update Order Status]
+            UC18[Generate Invoice]
+        end
+        
+        %% Analytics subsystem
+        subgraph "<<Service>> Analytics & Reports"
+            UC19[View Sales Dashboard]
+            UC20[Generate Sales Report]
+            UC21[View Analytics Charts]
+            UC22[Export PDF Report]
+        end
+        
+        %% Admin Management subsystem
+        subgraph "<<Service>> Administration"
+            UC23[Manage Users]
+            UC24[View Platform Stats]
+            UC25[Activate/Deactivate Users]
+            UC26[Monitor Activities]
+        end
+        
+        %% Communication subsystem
+        subgraph "<<Service>> Communication"
+            UC27[Contact Supplier]
+            UC28[Send Notifications]
+            UC29[View Contact Info]
+        end
+    end
+    
+    %% Guest connections
+    Guest --> UC1
+    Guest --> UC2
+    Guest --> UC5
+    Guest --> UC6
+    Guest --> UC7
+    
+    %% Seller connections
+    Seller --> UC2
+    Seller --> UC3
+    Seller --> UC4
+    Seller --> UC8
+    Seller --> UC9
+    Seller --> UC10
+    Seller --> UC16
+    Seller --> UC17
+    Seller --> UC18
+    Seller --> UC19
+    Seller --> UC20
+    Seller --> UC21
+    Seller --> UC22
+    
+    %% Retailer connections
+    Retailer --> UC2
+    Retailer --> UC3
+    Retailer --> UC4
+    Retailer --> UC5
+    Retailer --> UC6
+    Retailer --> UC7
+    Retailer --> UC12
+    Retailer --> UC13
+    Retailer --> UC14
+    Retailer --> UC15
+    Retailer --> UC16
+    Retailer --> UC27
+    Retailer --> UC29
+    
+    %% Admin connections
+    Admin --> UC2
+    Admin --> UC3
+    Admin --> UC23
+    Admin --> UC24
+    Admin --> UC25
+    Admin --> UC26
+    
+    %% External service connections
+    UC15 --> PaymentService
+    UC28 --> SMSService
+    UC28 --> EmailService
+    
+    %% Include relationships
+    UC14 -.->|<<include>>| UC15
+    UC12 -.->|<<include>>| UC14
+    UC17 -.->|<<include>>| UC18
+    UC20 -.->|<<include>>| UC22
+    UC1 -.->|<<include>>| UC28
+    UC17 -.->|<<include>>| UC28
+    
+    %% Extend relationships
+    UC7 -.->|<<extend>>| UC12
+    UC6 -.->|<<extend>>| UC11
+    UC15 -.->|<<extend>>| UC18

@@ -1,0 +1,574 @@
+================================================================================
+                    LOCALB2B - B2B MARKETPLACE PLATFORM
+                         COMPLETE DEVELOPMENT PROMPT
+================================================================================
+
+Create a comprehensive B2B marketplace platform called "LocalB2B" that connects local sellers and retailers. The platform should be built with modern web technologies and include all the features specified below.
+
+## TECHNOLOGY STACK REQUIREMENTS
+
+### Frontend (Client)
+- React 18 with JavaScript (NOT TypeScript)
+- Vite for build tooling and development server
+- React Router DOM v7.9.1 for routing
+- TanStack Query v5.8.4 for server state management
+- React Hook Form v7.47.0 with Zod v3.22.4 validation
+- Tailwind CSS v3.4.17 for responsive styling
+- Chart.js v4.4.0 with react-chartjs-2 v5.2.0 for analytics
+- Lucide React v0.292.0 for consistent iconography
+- Wouter v2.12.1 as additional routing option
+
+### Backend (Server)
+- Express.js v5.1.0 with Node.js
+- MySQL database with Sequelize ORM v6.37.3
+- JWT (jsonwebtoken v9.0.2) for authentication
+- Multer v2.0.2 for file upload handling
+- bcryptjs v3.0.2 for password hashing
+- PDFKit v0.15.0 for invoice generation
+- Twilio v5.2.0 SDK for SMS notifications
+- CORS v2.8.5 for cross-origin requests
+- dotenv v17.2.2 for environment variables
+
+## PROJECT STRUCTURE
+
+Create the following exact folder structure:
+
+```
+localb2b/
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/    # Reusable UI components
+│   │   ├── pages/         # Page components
+│   │   ├── utils/         # API client and utilities
+│   │   ├── contexts/      # React contexts
+│   │   └── App.jsx        # Main app component
+│   ├── public/            # Static assets
+│   ├── index.html         # HTML template
+│   ├── package.json       # Frontend dependencies
+│   ├── vite.config.js     # Vite configuration
+│   ├── tailwind.config.js # Tailwind configuration
+│   └── postcss.config.js  # PostCSS configuration
+├── server/                # Express.js backend
+│   ├── config/           # Database configuration
+│   ├── controllers/      # Request handlers
+│   ├── routes/           # API routes
+│   ├── middleware/       # Custom middleware
+│   ├── sequelize/        # Database models
+│   ├── utils/            # Utility functions
+│   ├── uploads/          # File storage
+│   ├── invoices/         # Generated invoices
+│   ├── index.js          # Server entry point
+│   ├── package.json      # Backend dependencies
+│   └── setup-mysql.js    # Database setup script
+├── .env.example          # Environment template
+├── .gitignore           # Git ignore rules
+├── README.md            # Documentation
+└── package.json         # Root configuration
+```
+
+## DATABASE SCHEMA
+
+Create MySQL database with Sequelize models:
+
+### Users Table
+```javascript
+{
+  id: UUID (Primary Key),
+  email: STRING (Unique, Not Null),
+  password: STRING (Hashed, Not Null),
+  role: ENUM('seller', 'retailer', 'admin'),
+  firstName: STRING (Not Null),
+  lastName: STRING (Not Null),
+  businessName: STRING,
+  businessType: ENUM('Manufacturing', 'Trading', 'Service Provider', 'Distributor'),
+  address: STRING (Not Null),
+  pincode: STRING (Not Null),
+  phone: STRING,
+  whatsapp: STRING,
+  isActive: BOOLEAN (Default: true),
+  createdAt: DATE,
+  updatedAt: DATE
+}
+```
+
+### Products Table
+```javascript
+{
+  id: UUID (Primary Key),
+  sellerId: UUID (Foreign Key to Users),
+  name: STRING (Not Null),
+  description: TEXT (Not Null),
+  category: ENUM('electronics', 'machinery', 'furniture', 'food', 'textiles', 'chemicals', 'other'),
+  price: DECIMAL(10,2) (Not Null),
+  moq: INTEGER (Not Null),
+  unit: STRING (Default: 'pieces'),
+  brand: STRING,
+  leadTime: INTEGER,
+  images: JSON (Array of image paths),
+  isActive: BOOLEAN (Default: true),
+  createdAt: DATE,
+  updatedAt: DATE
+}
+```
+
+### Orders Table
+```javascript
+{
+  id: UUID (Primary Key),
+  retailerId: UUID (Foreign Key to Users),
+  sellerId: UUID (Foreign Key to Users),
+  productId: UUID (Foreign Key to Products),
+  quantity: INTEGER (Not Null),
+  unitPrice: DECIMAL(10,2) (Not Null),
+  totalAmount: DECIMAL(10,2) (Not Null),
+  status: ENUM('pending', 'ordered', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'),
+  orderDate: DATE (Default: NOW),
+  shippedDate: DATE,
+  deliveredDate: DATE,
+  invoicePath: STRING,
+  notes: TEXT,
+  createdAt: DATE,
+  updatedAt: DATE
+}
+```
+
+### OrderTimeline Table
+```javascript
+{
+  id: UUID (Primary Key),
+  orderId: UUID (Foreign Key to Orders),
+  status: ENUM('pending', 'ordered', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'),
+  message: STRING,
+  occurredAt: DATE (Default: NOW)
+}
+```
+
+## USER ROLES AND FEATURES
+
+### 1. SELLER FEATURES
+- **Registration & Login**: Business profile with company details
+- **Product Management**: 
+  - Add/edit/delete products with up to 5 images
+  - Set MOQ (Minimum Order Quantity), pricing, lead times
+  - Category selection and brand information
+- **Order Management**:
+  - View incoming orders in dashboard
+  - Update order status: Ordered → Shipped → Out for Delivery → Delivered
+  - Generate and download PDF invoices automatically
+- **Analytics Dashboard**:
+  - Sales charts with Chart.js
+  - Revenue tracking and order statistics
+  - Performance metrics and trends
+- **SMS Notifications**: Automatic SMS to customers on status updates
+
+### 2. RETAILER FEATURES
+- **Registration & Login**: Business profile with location details
+- **Product Discovery**:
+  - Browse products by category
+  - Search by product name, location (pincode)
+  - Filter by price range and availability
+- **Order Placement**:
+  - Add products to cart with quantity validation (≥ MOQ)
+  - Place orders with business information
+- **Order Tracking**:
+  - Visual timeline showing order progress
+  - Real-time status updates
+  - Download invoices once shipped
+- **Communication**: Direct contact with sellers
+
+### 3. ADMIN FEATURES
+- **User Management**:
+  - View all users (sellers/retailers)
+  - Activate/deactivate accounts
+  - Monitor user activity
+- **Platform Analytics**:
+  - Overall platform statistics
+  - User growth and engagement metrics
+  - Order volume and revenue tracking
+- **System Monitoring**: Health checks and performance metrics
+
+## UI/UX REQUIREMENTS
+
+### Design System
+- **Color Scheme**: Modern blue and white theme with professional appearance
+- **Typography**: Clean, readable fonts with proper hierarchy
+- **Layout**: Responsive grid system using Tailwind CSS
+- **Components**: Consistent button styles, form inputs, and cards
+- **Icons**: Lucide React icons throughout the interface
+
+### Navigation Structure
+- **Header**: Logo, navigation menu, user profile dropdown
+- **Sidebar**: Role-based navigation (for dashboards)
+- **Footer**: Company information and links
+- **Breadcrumbs**: For deep navigation paths
+
+### Responsive Design
+- **Mobile**: Optimized for smartphones (320px+)
+- **Tablet**: Adapted layout for tablets (768px+)
+- **Desktop**: Full-featured interface (1024px+)
+- **Large Screens**: Optimized for 4K displays
+
+## CORE FUNCTIONALITY REQUIREMENTS
+
+### 1. Authentication System
+```javascript
+// Features to implement:
+- User registration with email verification
+- Secure login with JWT tokens
+- Password hashing with bcryptjs (12+ salt rounds)
+- Role-based access control
+- Password reset functionality
+- Session management with token expiration
+```
+
+### 2. Product Management
+```javascript
+// Features to implement:
+- CRUD operations for products
+- Multiple image upload (max 5 images, 5MB each)
+- Image compression and optimization
+- Category-based organization
+- Search and filtering capabilities
+- MOQ validation and enforcement
+```
+
+### 3. Order Processing
+```javascript
+// Features to implement:
+- Order placement with quantity validation
+- Status tracking with timeline visualization
+- Automatic status progression workflow
+- Order history and management
+- Cancellation handling with proper authorization
+```
+
+### 4. SMS Notification System
+```javascript
+// Twilio Integration Requirements:
+- Send SMS when order status changes to "Shipped"
+- Send SMS when order status changes to "Out for Delivery"  
+- Send SMS when order status changes to "Delivered"
+- Professional message templates
+- Error handling for failed SMS delivery
+- SMS logging for audit purposes
+
+// Example SMS Templates:
+"Your order #[ORDER_ID] from [SELLER_NAME] has been shipped. Track your order at [LINK]"
+"Your order #[ORDER_ID] is out for delivery. Expected delivery today."
+"Your order #[ORDER_ID] has been delivered successfully. Thank you for your business!"
+```
+
+### 5. PDF Invoice Generation
+```javascript
+// PDFKit Implementation:
+- Automatic generation when order marked as "Shipped"
+- Professional invoice template with company branding
+- Include all order details, business information, and totals
+- Sequential invoice numbering
+- Secure storage and download capabilities
+- Both seller and retailer access to invoices
+```
+
+### 6. Analytics and Reporting
+```javascript
+// Chart.js Implementation:
+- Sales revenue charts (line/bar charts)
+- Order status distribution (pie charts)
+- Monthly/yearly performance trends
+- User activity metrics
+- Export capabilities (CSV/PDF)
+- Real-time dashboard updates
+```
+
+## API ENDPOINTS SPECIFICATION
+
+### Authentication Routes
+```
+POST /api/auth/register - User registration
+POST /api/auth/login - User login
+GET /api/auth/me - Get current user profile
+POST /api/auth/logout - User logout
+POST /api/auth/forgot-password - Password reset request
+POST /api/auth/reset-password - Password reset confirmation
+```
+
+### Product Routes
+```
+GET /api/products - Get products with filters (search, category, pincode)
+GET /api/products/featured - Get featured products
+GET /api/products/:id - Get single product details
+POST /api/products - Create new product (sellers only)
+PUT /api/products/:id - Update product (seller only)
+DELETE /api/products/:id - Delete product (seller only)
+```
+
+### Order Routes
+```
+POST /api/orders - Create new order (retailers only)
+GET /api/retailer/orders - Get retailer's orders
+GET /api/seller/orders - Get seller's orders
+PUT /api/orders/:id/status - Update order status (sellers only)
+GET /api/orders/:id - Get order details
+GET /api/orders/:id/timeline - Get order timeline
+```
+
+### User Management Routes
+```
+GET /api/users/profile - Get user profile
+PUT /api/users/profile - Update user profile
+GET /api/admin/users - Get all users (admin only)
+PUT /api/admin/users/:id/status - Update user status (admin only)
+DELETE /api/admin/users/:id - Delete user (admin only)
+```
+
+### File Upload Routes
+```
+POST /api/upload/images - Upload product images
+DELETE /api/upload/images/:filename - Delete uploaded image
+GET /api/invoices/:filename - Download invoice PDF
+```
+
+### Analytics Routes
+```
+GET /api/seller/stats - Get seller analytics
+GET /api/admin/stats - Get platform analytics
+GET /api/orders/stats - Get order statistics
+```
+
+## ENVIRONMENT CONFIGURATION
+
+Create `.env` file with these variables:
+```env
+# Server Configuration
+NODE_ENV=development
+PORT=5000
+
+# Database Configuration
+MYSQL_DB=localb2b_db
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+
+# JWT Configuration
+JWT_SECRET=your_super_secure_jwt_secret_key_here
+JWT_EXPIRE=7d
+
+# Twilio SMS Configuration
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=+1234567890
+```
+
+## SPECIFIC UI COMPONENTS TO CREATE
+
+### 1. Dashboard Components
+- **SellerDashboard**: Order management, analytics charts, product listings
+- **RetailerDashboard**: Order history, product discovery, order tracking
+- **AdminDashboard**: User management, platform statistics, system monitoring
+
+### 2. Product Components
+- **ProductCard**: Display product with image, price, MOQ, seller info
+- **ProductForm**: Add/edit product with image upload
+- **ProductList**: Grid/list view with search and filters
+- **ProductDetails**: Detailed product view with order placement
+
+### 3. Order Components
+- **OrderCard**: Order summary with status and actions
+- **OrderTimeline**: Visual progress indicator with status updates
+- **OrderForm**: Order placement with quantity validation
+- **OrderManagement**: Seller interface for status updates
+
+### 4. Analytics Components
+- **SalesChart**: Revenue trends using Chart.js
+- **OrderStats**: Status distribution pie charts
+- **PerformanceMetrics**: KPI cards and statistics
+- **ExportTools**: Data export functionality
+
+### 5. Common Components
+- **Header**: Navigation with user menu
+- **Sidebar**: Role-based navigation menu
+- **LoadingSpinner**: Consistent loading indicators
+- **ErrorBoundary**: Error handling and display
+- **Modal**: Reusable modal dialogs
+- **Toast**: Success/error notifications
+
+## STYLING REQUIREMENTS
+
+### Tailwind CSS Configuration
+```javascript
+// Use these specific classes and patterns:
+- Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+- Cards: bg-white rounded-lg shadow-md p-6
+- Buttons: bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md
+- Forms: border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500
+- Grid: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
+- Typography: text-gray-900 font-medium text-lg
+```
+
+### Color Palette
+```css
+Primary: #2563eb (blue-600)
+Secondary: #64748b (slate-500)  
+Success: #059669 (emerald-600)
+Warning: #d97706 (amber-600)
+Error: #dc2626 (red-600)
+Background: #f8fafc (slate-50)
+Surface: #ffffff (white)
+Text: #1e293b (slate-800)
+```
+
+## WORKFLOW IMPLEMENTATION
+
+### 1. Order Workflow
+```
+Retailer places order → Order status: "ordered"
+↓
+Seller accepts order → Status remains "ordered"
+↓
+Seller ships order → Status: "shipped" + Generate invoice + Send SMS
+↓
+Seller updates to out for delivery → Status: "out_for_delivery" + Send SMS
+↓
+Seller marks delivered → Status: "delivered" + Send SMS
+```
+
+### 2. SMS Workflow
+```javascript
+// Implement these exact SMS triggers:
+1. When status changes to "shipped":
+   - Generate PDF invoice
+   - Send SMS: "Your order #[ID] has been shipped. Invoice available for download."
+
+2. When status changes to "out_for_delivery":
+   - Send SMS: "Your order #[ID] is out for delivery. Expected delivery today."
+
+3. When status changes to "delivered":
+   - Send SMS: "Your order #[ID] delivered successfully. Thank you!"
+```
+
+### 3. Invoice Generation Workflow
+```javascript
+// PDFKit implementation requirements:
+1. Trigger: When order status changes to "shipped"
+2. Generate PDF with:
+   - Company header and branding
+   - Order details (product, quantity, price)
+   - Seller and retailer business information
+   - Total amount and taxes
+   - Invoice number (sequential)
+   - Date and terms
+3. Save to /server/invoices/ directory
+4. Update order record with invoice path
+5. Make downloadable via API endpoint
+```
+
+## TESTING REQUIREMENTS
+
+### 1. Create Test Data
+```javascript
+// Default admin user:
+Email: admin@localb2b.com
+Password: admin123
+
+// Sample seller:
+Email: seller@test.com
+Password: seller123
+Business: ABC Manufacturing
+
+// Sample retailer:
+Email: retailer@test.com  
+Password: retailer123
+Business: XYZ Store
+```
+
+### 2. Test Scenarios
+- User registration and login for all roles
+- Product creation with image uploads
+- Order placement with MOQ validation
+- Status updates with SMS and invoice generation
+- Dashboard analytics and charts
+- Search and filtering functionality
+- File upload and download operations
+
+## DEPLOYMENT REQUIREMENTS
+
+### Development Setup
+```bash
+# Root level package.json scripts:
+"dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\""
+"build": "cd client && npm run build"
+"install-all": "npm install && cd server && npm install && cd client && npm install"
+
+# Server package.json scripts:
+"dev": "node index.js"
+"start": "node index.js"
+"setup-db": "node setup-mysql.js"
+
+# Client package.json scripts:
+"dev": "npx vite"
+"build": "vite build"
+"preview": "vite preview"
+```
+
+### Production Considerations
+- Environment variable validation
+- Database connection pooling
+- File upload size limits
+- CORS configuration for production domains
+- SSL/HTTPS enforcement
+- Error logging and monitoring
+- Backup and recovery procedures
+
+## SECURITY REQUIREMENTS
+
+### 1. Authentication Security
+- Password hashing with bcryptjs (12+ salt rounds)
+- JWT token expiration and refresh
+- Role-based route protection
+- Input validation with Zod schemas
+- SQL injection prevention with Sequelize
+
+### 2. File Upload Security
+- File type validation (images only)
+- File size limits (5MB max)
+- Secure file storage with proper permissions
+- Image compression and optimization
+
+### 3. API Security
+- Rate limiting for API endpoints
+- CORS configuration
+- Request validation middleware
+- Error handling without information disclosure
+- Audit logging for critical operations
+
+## SUCCESS CRITERIA
+
+The platform should successfully demonstrate:
+
+1. ✅ Complete user registration and authentication for all three roles
+2. ✅ Product management with image uploads and category organization
+3. ✅ Order placement with MOQ validation and real-time processing
+4. ✅ Order status tracking with visual timeline and updates
+5. ✅ Automatic SMS notifications via Twilio integration
+6. ✅ PDF invoice generation and download functionality
+7. ✅ Analytics dashboards with Chart.js visualizations
+8. ✅ Responsive design working on all device sizes
+9. ✅ Admin panel for user and platform management
+10. ✅ Search and filtering capabilities across products
+11. ✅ File upload and management system
+12. ✅ Professional UI/UX with consistent design system
+
+## FINAL DELIVERABLES
+
+1. **Complete Source Code**: Frontend and backend with all features
+2. **Database Setup**: MySQL schema with sample data
+3. **Documentation**: README with setup and usage instructions
+4. **Environment Configuration**: .env.example with all required variables
+5. **Deployment Scripts**: Package.json scripts for development and production
+6. **Testing Guide**: Instructions for testing all functionality
+7. **User Manual**: Guide for sellers, retailers, and admins
+
+The final platform should be a production-ready B2B marketplace that can handle real business transactions between local sellers and retailers with all the specified features working seamlessly.
+
+================================================================================
